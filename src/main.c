@@ -41,21 +41,92 @@
 #include "pt_cornell_rp2040_v1_3.h"
 
 // Some macros for max/min/abs
-#define min(a,b) ((a<b) ? a:b)
-#define max(a,b) ((a<b) ? b:a)
-#define abs(a) ((a>0) ? a:-a)
+#define min(a,b) (((a)<(b)) ? (a):(b))
+#define max(a,b) (((a)<(b)) ? (b):(a))
+#define abs(a) (((a)>(0)) ? (a):-(a))
 
 // Some paramters for PWM
 #define WRAPVAL 5000
 #define CLKDIV  25.0
 uint slice_num ;
 
+
+
+static unsigned char buffer_index = 0;
+static int buffer_a[256] = {};
+static int buffer_b[256] = {};
+static int buffer_c[256] = {};
+
+void push(int a, int b, int c) {
+    buffer_a[buffer_index] = a; 
+    buffer_b[buffer_index] = b;
+    buffer_c[buffer_index] = c;
+    buffer_index += 1;
+}
+
+void sample_all_adcs() {
+    // Read ADC0
+    adc_select_input(0);
+    uint16_t adc0 = adc_read();
+    // Read ADC1
+    adc_select_input(1);
+    uint16_t adc1 = adc_read();
+    // Read ADC2
+    adc_select_input(2);
+    uint16_t adc2 = adc_read();
+
+    // Push the values to the buffer
+    push(adc0, adc1, adc2);
+}
+
+void load_buffers() {
+    absolute_time_t now;
+    
+    buffer_index = 0;
+    now = get_absolute_time();
+    for (int i = 0; i < 256; i++) {
+        now += make_timeout_time_ms(20);
+        busy_wait_until(now);
+        sample_all_adcs();
+    }
+
+    int total_a,  total_b,  total_c;
+    total_a = 0, total_b = 0, total_c = 0;
+
+    for (int i = 0; i < 256; i++) {
+        total_a += buffer_a[i];
+        total_b += buffer_b[i];
+        total_c += buffer_c[i];
+    }
+
+    total_a >>= 8;
+    total_b >>= 8;
+    total_c >>= 8;
+
+    for (int i = 0; i < 256; i++) {
+        buffer_a[i] -= total_a;
+        buffer_b[i] -= total_b;
+        buffer_c[i] -= total_c;
+    }
+
+}
+
+bool buffer_juicy() {
+    long power = 0;
+    for (int i = 0; i < 256; i++) {
+        power += (buffer_a[i]) * (buffer_a[i]);
+        power += (buffer_b[i]) * (buffer_b[i]);
+        power += (buffer_c[i]) * (buffer_c[i]);
+    }
+    long average_power = power / 768;
+    return (average_power >= 1024);
+}
+
 // Interrupt service routine
 void on_pwm_wrap() {
 
     // Clear the interrupt flag that brought us here
     pwm_clear_irq(pwm_gpio_to_slice_num(5));
-
 
 }
 
@@ -87,6 +158,10 @@ int main() {
 
     // Initialize stdio
     stdio_init_all();
+    adc_init();
+    adc_gpio_init(26); // ADC0
+    adc_gpio_init(27); // ADC1
+    adc_gpio_init(28); // ADC2
 
     ////////////////////////////////////////////////////////////////////////
     ///////////////////////// PWM CONFIGURATION ////////////////////////////
@@ -124,8 +199,12 @@ int main() {
     multicore_reset_core1();
     multicore_launch_core1(core1_entry);
 
-    // start core 0
-    pt_add_thread(protothread_serial) ;
-    pt_schedule_start ;
+    while(1) {
+        load_buffers();
+
+        if (buffer_juicy()) {
+            
+        }
+    }
 
 }
