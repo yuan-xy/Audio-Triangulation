@@ -292,8 +292,8 @@ static inline int16_t adc12_to_fix15(uint16_t raw12)
         v = 2047;
     if (v < -2048)
         v = -2048;
-    // shift left by 3 to go from 12→15 bits
-    return (int16_t)(v << 3);
+    // shift left by 2 to go from 12→14 bits
+    return (int16_t)(v << 2);
 }
 
 void load_audio_buffers(void)
