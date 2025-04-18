@@ -32,6 +32,18 @@ include(pico_sdk_import.cmake)
 project(audio_triangulation C CXX ASM)
 pico_sdk_init()
 
+add_executable(${PROJECT_NAME})
+
+pico_generate_pio_header(audio_triangulation
+    ${CMAKE_CURRENT_LIST_DIR}/src/pio/hsync.pio
+)
+pico_generate_pio_header(audio_triangulation
+    ${CMAKE_CURRENT_LIST_DIR}/src/pio/vsync.pio
+)
+pico_generate_pio_header(audio_triangulation
+    ${CMAKE_CURRENT_LIST_DIR}/src/pio/rgb.pio
+)
+
 # —————— Source discovery ——————
 # Recursively grab all .c/.cpp/.h under src/
 file(GLOB_RECURSE PROJECT_SOURCES
@@ -43,18 +55,13 @@ file(GLOB_RECURSE PROJECT_HEADERS
 )
 
 # —————— Executable ——————
-add_executable(${PROJECT_NAME}
-    ${PROJECT_SOURCES}
-    ${PROJECT_HEADERS}   # handy for IDE indexing
+target_sources(${PROJECT_NAME}
+    PRIVATE
+        ${PROJECT_SOURCES}
+        ${PROJECT_HEADERS}
 )
 
-# Make sure the executable is built with the same flags as the library
-pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/src/pio/hsync.pio)
-pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/src/pio/vsync.pio)
-pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/src/pio/rgb.pio)
-
-
-# Make “#include <foo.h>” pick up anything in src/
+# Make “#include <foo.h>” pick up anything in src/ or src/
 target_include_directories(${PROJECT_NAME}
     PRIVATE
         "${CMAKE_CURRENT_LIST_DIR}/src"
