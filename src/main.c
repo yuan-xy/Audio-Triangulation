@@ -23,29 +23,33 @@
 #include "hardware/pio.h"
 #include "hardware/i2c.h"
 
-#include "vga16_graphics.h"
 #include "pt_cornell_rp2040_v1_3.h"
+#include "vga16_graphics.h"
+
+
+
+
 
 //
 // ———————————————— CONFIGURATION ————————————————
 //
 
 // Audio sampling
-#define SAMPLE_RATE_HZ 100000U // 100 kHz sample rate
+#define SAMPLE_RATE_HZ 50000U // 50 kHz sample rate
 #define SAMPLE_PERIOD_US (1000000 / SAMPLE_RATE_HZ)
 #define BUFFER_SIZE 256U
-#define MAX_SHIFT_SAMPLES 32 // ±32 samples max for correlation
+#define MAX_SHIFT_SAMPLES 25 // ±32 samples max for correlation
 
 // Physical constants
 #define SPEED_OF_SOUND_MPS 343.0f // m/s
 
 // Geometry (meters)
-#define MIC_DIST_AB_M 0.10f // Mic A ↔ B
-#define MIC_DIST_BC_M 0.10f // Mic B ↔ C
-#define MIC_DIST_CA_M 0.14f // Mic C ↔ A
+#define MIC_DIST_AB_M 0.155f // Mic A ↔ B
+#define MIC_DIST_BC_M 0.155f // Mic B ↔ C
+#define MIC_DIST_CA_M 0.155f // Mic C ↔ A
 
 // Activity Detection
-#define ACTIVITY_THRESHOLD 1024U // energy threshold
+#define ACTIVITY_THRESHOLD 40000U // energy threshold
 
 // ADC channels (GPIO26→ADC0, 27→ADC1, 28→ADC2)
 #define MIC_A_ADC_CH 0
@@ -53,6 +57,37 @@
 #define MIC_C_ADC_CH 2
 
 #define ABS(x) ((x) < 0 ? -(x) : (x))
+
+#define LED_PIN 25 // GPIO pin for LED
+
+
+static PT_THREAD (protothread_toggle25(struct pt *pt))
+{
+    // every thread begins with PT_BEGIN(pt);
+    PT_BEGIN(pt);
+    // always use static variables in a thread!!
+    // if you eliminate the 'static' watch what happens
+    static bool LED_state = false ;
+    //
+     // set up LED gpio 25
+     gpio_init(LED_PIN) ;	
+     gpio_set_dir(LED_PIN, GPIO_OUT) ;
+     gpio_put(LED_PIN, true);
+
+      while(1) {
+        // toggle gpio 25
+        LED_state = !LED_state ;
+        gpio_put(LED_PIN, LED_state);
+        // yield the thread to the scheduler
+        // so to figure out what to do next
+        // see https://people.ece.cornell.edu/land/courses/ece4760/RP2040/C_SDK_protothreads/1_3_priority/index_Protothreads_priority.html
+        PT_YIELD_usec(100000) ;
+        // NEVER exit WHILE in a thread
+      } // END WHILE(1)
+      // every thread ends with PT_END(pt);
+      PT_END(pt);
+} // end blink thread
+
 
 //
 // ———————————————— GLOBAL BUFFERS ————————————————
@@ -111,6 +146,7 @@ void compute_sound_source_position(void);
 
 static struct pt_sem vga_semaphore;
 static char screentext[256];
+static uint32_t old_mic_vals[3] = {0, 0, 0};
 
 static PT_THREAD(protothread_vga_debug(struct pt *pt))
 {
@@ -133,24 +169,39 @@ static PT_THREAD(protothread_vga_debug(struct pt *pt))
     {
         // wait for sampling to signal us
         PT_SEM_WAIT(pt, &vga_semaphore);
+        //erase by redrawing all old text in black
+        
 
-        // line 0: power levels
         setCursor(0, 0);
+        setTextSize(1);
+        setTextColor2(GREEN, BLACK);
+        // writeString("--= Mic Power Levels =--\n");
+        // sprintf(screentext,
+        //         "Power Mic A:%5u                            \n"
+        //         "Power Mic B:%5u                            \n"
+        //         "Power Mic C:%5u                            \n",
+        //         old_mic_vals[0], old_mic_vals[1], old_mic_vals[2]);
+        // writeString(screentext);
+        // setCursor(0, 0);
+        // setTextColor(GREEN);
         writeString("--= Mic Power Levels =--\n");
         sprintf(screentext,
-                "Power Mic A:%5u\n"
-                "Power Mic B:%5u\n"
-                "Power Mic C:%5u\n",
-                mic_power_a, mic_power_b, mic_power_c);
+            "Power Mic A:%5u                            \n"
+            "Power Mic B:%5u                            \n"
+            "Power Mic C:%5u                            \n",
+            mic_power_a, mic_power_b, mic_power_c);
         writeString(screentext);
-
+        
+        old_mic_vals[0]= mic_power_a;
+        old_mic_vals[1]= mic_power_b;
+        old_mic_vals[2]= mic_power_c;
         // line 1: sample‐shifts
         writeString("\n\n");
         writeString("--= Sample Shifts =--\n");
         sprintf(screentext,
-                "Shift AB:%+4d\n"
-                "Shift AC:%+4d\n"
-                "Shift BC:%+4d\n",
+                "Shift AB:%+4d       \n"
+                "Shift AC:%+4d       \n"
+                "Shift BC:%+4d       \n",
                 shift_ab, shift_ac, shift_bc);
         writeString(screentext);
 
@@ -170,23 +221,9 @@ static PT_THREAD(protothread_vga_debug(struct pt *pt))
     PT_END(pt);
 }
 
-//
-// ———————————————— MAIN ————————————————
-//
-int main()
+static PT_THREAD(protothread_sample_and_compute(struct pt *pt))
 {
-    stdio_init_all();
-    init_adc();
-    init_mic_positions();
-
-    printf("=== Audio Triangulation ===\n"
-           " Mic A = (%.3f, %.3f)\n"
-           " Mic B = (%.3f, %.3f)\n"
-           " Mic C = (%.3f, %.3f)\n\n",
-           micA.x, micA.y,
-           micB.x, micB.y,
-           micC.x, micC.y);
-
+    PT_BEGIN(pt);
     while (1)
     {
         load_audio_buffers();
@@ -202,10 +239,42 @@ int main()
             mic_power_c > ACTIVITY_THRESHOLD)
         {
             process_audio();
+            PT_YIELD_usec(50000); // 10 ms delay
+            PT_SEM_SIGNAL(pt, &vga_semaphore);
         }
 
-        PT_SEM_SIGNAL(pt, &vga_semaphore);
     }
+    PT_END(pt);
+}
+
+//
+// ———————————————— MAIN ————————————————
+//
+int main()
+{
+    stdio_init_all();
+    initVGA();
+    gpio_init(25);
+    gpio_set_dir(25, GPIO_OUT);
+    init_adc();
+    init_mic_positions();
+
+    pt_add_thread(protothread_toggle25);
+    pt_add_thread(protothread_vga_debug);
+    pt_add_thread(protothread_sample_and_compute);
+    PT_SEM_INIT(&vga_semaphore, 0);
+    // === initalize the scheduler ===============
+    // method is either:
+    pt_schedule_start ;
+
+    // printf("=== Audio Triangulation ===\n"
+    //        " Mic A = (%.3f, %.3f)\n"
+    //        " Mic B = (%.3f, %.3f)\n"
+    //        " Mic C = (%.3f, %.3f)\n\n",
+    //        micA.x, micA.y,
+    //        micB.x, micB.y,
+    //        micC.x, micC.y);
+    while (true) {busy_wait_at_least_cycles(1000000);}
     return 0;
 }
 
@@ -298,8 +367,8 @@ static inline int16_t adc12_to_fix15(uint16_t raw12)
 
 void load_audio_buffers(void)
 {
-    const absolute_time_t period = make_timeout_time_us(SAMPLE_PERIOD_US);
-    absolute_time_t deadline = get_absolute_time();
+    // const absolute_time_t period = make_timeout_time_us(SAMPLE_PERIOD_US);
+    // absolute_time_t deadline = get_absolute_time();
 
     for (size_t i = 0; i < BUFFER_SIZE; i++)
     {
@@ -310,8 +379,8 @@ void load_audio_buffers(void)
         adc_select_input(MIC_C_ADC_CH);
         buffer_c[i] = adc12_to_fix15(adc_read());
 
-        deadline = deadline + period;
-        busy_wait_until(deadline);
+        // deadline = deadline + period;
+        // busy_wait_until(deadline);
     }
 }
 

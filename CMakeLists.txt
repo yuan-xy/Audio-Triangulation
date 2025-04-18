@@ -59,6 +59,8 @@ target_sources(${PROJECT_NAME}
     PRIVATE
         ${PROJECT_SOURCES}
         ${PROJECT_HEADERS}
+        src/vga16_graphics.c
+
 )
 
 # Make “#include <foo.h>” pick up anything in src/ or src/
@@ -73,21 +75,7 @@ pico_enable_stdio_uart(${PROJECT_NAME} 0)
 
 # —————— Link libraries ——————
 target_link_libraries(${PROJECT_NAME}
-    pico_stdlib
-    pico_bootsel_via_double_reset
-    pico_multicore
-
-    hardware_pwm
-    hardware_dma
-    hardware_irq
-    hardware_adc
-    hardware_pio
-    hardware_i2c
-    hardware_spi
-    hardware_sync
-    hardware_uart
-    hardware_timer
-)
+pico_stdlib pico_bootsel_via_double_reset pico_multicore hardware_pwm hardware_dma hardware_irq hardware_adc hardware_pio hardware_i2c hardware_spi hardware_sync hardware_pwm hardware_dma hardware_adc hardware_i2c hardware_uart hardware_timer hardware_pio)
 
 if (PICO_CYW43_SUPPORTED)
     target_link_libraries(${PROJECT_NAME}
