@@ -440,6 +440,65 @@ void process_audio(void)
 //
 // ———————————————— LOCALIZATION (TDOA) ————————————————
 //
+
+// NOT USED CURRENTLY
+// BUT IS POTENTIALLY LESS NOISY
+point2d_t solve_tdoa_ls() {
+    // 1) initial guess: e.g. origin or far‑field bearing projection
+    point2d_t p = { 0.0f, 0.0f };
+
+    // convert sample‐shift → range‑difference
+    float rdiff_ab = SPEED_OF_SOUND_MPS * ((float)shift_ab / SAMPLE_RATE_HZ);
+    float rdiff_ac = SPEED_OF_SOUND_MPS * ((float)shift_ac / SAMPLE_RATE_HZ);
+    float rdiff_bc = SPEED_OF_SOUND_MPS * ((float)shift_bc / SAMPLE_RATE_HZ);
+
+    for (int iter = 0; iter < 10; iter++) {
+        // build residual vector f = [f_AB, f_AC, f_BC]^T
+        float dA = hypotf(p.x - micA.x, p.y - micA.y);
+        float dB = hypotf(p.x - micB.x, p.y - micB.y);
+        float dC = hypotf(p.x - micC.x, p.y - micC.y);
+
+        float fAB = (dA - dB) - rdiff_ab;
+        float fAC = (dA - dC) - rdiff_ac;
+        float fBC = (dB - dC) - rdiff_bc;
+
+        // Jacobian J is 3×2, each row = ∇_p[ d_i - d_j ]
+        // ∂(d_i - d_j)/∂x = (x - m_i.x)/d_i - (x - m_j.x)/d_j
+        float J[3][2] = {
+          { (p.x-micA.x)/dA - (p.x-micB.x)/dB,
+            (p.y-micA.y)/dA - (p.y-micB.y)/dB },
+          { (p.x-micA.x)/dA - (p.x-micC.x)/dC,
+            (p.y-micA.y)/dA - (p.y-micC.y)/dC },
+          { (p.x-micB.x)/dB - (p.x-micC.x)/dC,
+            (p.y-micB.y)/dB - (p.y-micC.y)/dC },
+        };
+
+        // form normal equations: (J^T J) Δ = - J^T f
+        float JTJ[2][2] = {0}, JTf[2] = {0};
+        float f[3]    = { fAB, fAC, fBC };
+        for (int i = 0; i < 3; i++) {
+            JTJ[0][0] += J[i][0]*J[i][0];
+            JTJ[0][1] += J[i][0]*J[i][1];
+            JTJ[1][0] += J[i][1]*J[i][0];
+            JTJ[1][1] += J[i][1]*J[i][1];
+            JTf[0]    += J[i][0]*f[i];
+            JTf[1]    += J[i][1]*f[i];
+        }
+        // solve 2×2 system for Δ = -(JTJ)^{-1} * JTf
+        float det = JTJ[0][0]*JTJ[1][1] - JTJ[0][1]*JTJ[1][0];
+        if (fabsf(det) < 1e-6f) break;
+        float inv00 =  JTJ[1][1]/det, inv01 = -JTJ[0][1]/det;
+        float inv10 = -JTJ[1][0]/det, inv11 =  JTJ[0][0]/det;
+        float dx = -(inv00*JTf[0] + inv01*JTf[1]);
+        float dy = -(inv10*JTf[0] + inv11*JTf[1]);
+
+        p.x += dx;
+        p.y += dy;
+        if (sqrtf(dx*dx + dy*dy) < 1e-4f) break;  // converged
+    }
+    return p;
+}
+
 void compute_sound_source_position(void)
 {
     // convert sample‐shift → range‑difference
@@ -462,3 +521,4 @@ void compute_sound_source_position(void)
     // 2) “Estimated distance” as the average absolute path‑difference
     sound_distance_m = (fabsf(rdiff_ab) + fabsf(rdiff_ac) + fabsf(rdiff_bc)) / 3.0f;
 }
+
