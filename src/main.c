@@ -83,11 +83,19 @@ typedef struct
 static point2d_t micA, micB, micC;
 
 //
+// ———————————————— AUDIO PROCESSING ————————————————
+//
+
+static float sound_angle_deg = 0.0f;
+static float sound_distance_m = 0.0f;
+
+//
 // ———————————————— PROTOTYPES ————————————————
 //
 void init_adc(void);
 void init_mic_positions(void);
 void load_audio_buffers(void);
+void window_buffers(void);
 void normalize_buffers(void);
 uint32_t buffer_power_level(const int16_t *buf);
 int find_best_correlation(const int16_t *ref,
@@ -95,7 +103,7 @@ int find_best_correlation(const int16_t *ref,
                           size_t len,
                           int max_shift);
 void process_audio(void);
-void compute_sound_source_position(int shift_ab, int shift_ac, int shift_bc);
+void compute_sound_source_position(void);
 
 //
 // ———————————————— VGA THREAD ————————————————
@@ -129,36 +137,33 @@ static PT_THREAD(protothread_vga_debug(struct pt *pt))
         // line 0: power levels
         setCursor(0, 0);
         writeString("--= Mic Power Levels =--\n");
-        sprintf(screentext, 
-            "Power Mic A:%5u\n"
-            "Power Mic B:%5u\n"
-            "Power Mic C:%5u\n",
-            mic_power_a, mic_power_b, mic_power_c
-        );
+        sprintf(screentext,
+                "Power Mic A:%5u\n"
+                "Power Mic B:%5u\n"
+                "Power Mic C:%5u\n",
+                mic_power_a, mic_power_b, mic_power_c);
         writeString(screentext);
 
         // line 1: sample‐shifts
         writeString("\n\n");
         writeString("--= Sample Shifts =--\n");
-        sprintf(screentext, 
-            "Shift AB:%+4d\n"
-            "Shift AC:%+4d\n"
-            "Shift BC:%+4d\n",
-            shift_ab, shift_ac, shift_bc
-        );
+        sprintf(screentext,
+                "Shift AB:%+4d\n"
+                "Shift AC:%+4d\n"
+                "Shift BC:%+4d\n",
+                shift_ab, shift_ac, shift_bc);
         writeString(screentext);
 
         // line 2–4: mic positions
         writeString("\n\n");
         writeString("--= Mic Positions =--\n");
-        sprintf(screentext, 
-            "Mic A: (%.3f, %.3f)\n"
-            "Mic B: (%.3f, %.3f)\n"
-            "Mic C: (%.3f, %.3f)\n",
-            micA.x, micA.y,
-            micB.x, micB.y,
-            micC.x, micC.y
-        );
+        sprintf(screentext,
+                "Mic A: (%.3f, %.3f)\n"
+                "Mic B: (%.3f, %.3f)\n"
+                "Mic C: (%.3f, %.3f)\n",
+                micA.x, micA.y,
+                micB.x, micB.y,
+                micC.x, micC.y);
         writeString(screentext);
     }
 
@@ -185,6 +190,7 @@ int main()
     while (1)
     {
         load_audio_buffers();
+        window_buffers();
         normalize_buffers();
 
         mic_power_a = buffer_power_level(buffer_a);
@@ -277,16 +283,18 @@ void init_mic_positions(void)
 //   0    →  -1.0  0x8000 (i.e. -32768)
 //   2048 →   0.0   0x0000
 //   4095 →  +0.9998 ~0x7FFF
-static inline int16_t adc12_to_fix15(uint16_t raw12) {
+static inline int16_t adc12_to_fix15(uint16_t raw12)
+{
     // center around zero
     int32_t v = (int32_t)raw12 - 2048;
     // clamp just in case
-    if (v >  2047) v =  2047;
-    if (v < -2048) v = -2048;
+    if (v > 2047)
+        v = 2047;
+    if (v < -2048)
+        v = -2048;
     // shift left by 3 to go from 12→15 bits
     return (int16_t)(v << 3);
 }
-
 
 void load_audio_buffers(void)
 {
@@ -304,6 +312,38 @@ void load_audio_buffers(void)
 
         deadline = deadline + period;
         busy_wait_until(deadline);
+    }
+}
+
+//
+// ———————————— BUFFER WINDOWING ————————————————
+//
+void window_buffers(void)
+{
+    static int32_t window[256] = {
+        0x022b, 0x0274, 0x02c1, 0x0314, 0x036a, 0x03c6, 0x0426, 0x048b, 0x04f5, 0x0564, 0x05d9, 0x0653, 0x06d2, 0x0756, 0x07e0, 0x0870,
+        0x0905, 0x09a0, 0x0a40, 0x0ae7, 0x0b93, 0x0c46, 0x0cfe, 0x0dbc, 0x0e80, 0x0f4a, 0x101b, 0x10f1, 0x11cd, 0x12b0, 0x1398, 0x1487,
+        0x157b, 0x1676, 0x1776, 0x187c, 0x1988, 0x1a9a, 0x1bb2, 0x1ccf, 0x1df2, 0x1f1a, 0x2048, 0x217b, 0x22b3, 0x23f0, 0x2533, 0x267a,
+        0x27c5, 0x2916, 0x2a6b, 0x2bc4, 0x2d21, 0x2e82, 0x2fe7, 0x314f, 0x32bb, 0x342a, 0x359d, 0x3712, 0x3889, 0x3a03, 0x3b7f, 0x3cfe,
+        0x3e7e, 0x3fff, 0x4182, 0x4305, 0x448a, 0x460f, 0x4794, 0x491a, 0x4a9f, 0x4c24, 0x4da8, 0x4f2b, 0x50ac, 0x522d, 0x53ab, 0x5527,
+        0x56a1, 0x5818, 0x598d, 0x5afe, 0x5c6c, 0x5dd6, 0x5f3c, 0x609e, 0x61fb, 0x6354, 0x64a7, 0x65f5, 0x673e, 0x6881, 0x69be, 0x6af4,
+        0x6c24, 0x6d4d, 0x6e6f, 0x6f89, 0x709d, 0x71a8, 0x72ac, 0x73a7, 0x749a, 0x7584, 0x7666, 0x773f, 0x780f, 0x78d5, 0x7992, 0x7a45,
+        0x7aef, 0x7b8e, 0x7c24, 0x7caf, 0x7d31, 0x7da7, 0x7e14, 0x7e75, 0x7ecd, 0x7f19, 0x7f5b, 0x7f91, 0x7fbd, 0x7fde, 0x7ff4, 0x7fff,
+        0x7fff, 0x7ff4, 0x7fde, 0x7fbd, 0x7f91, 0x7f5b, 0x7f19, 0x7ecd, 0x7e75, 0x7e14, 0x7da7, 0x7d31, 0x7caf, 0x7c24, 0x7b8e, 0x7aef,
+        0x7a45, 0x7992, 0x78d5, 0x780f, 0x773f, 0x7666, 0x7584, 0x749a, 0x73a7, 0x72ac, 0x71a8, 0x709d, 0x6f89, 0x6e6f, 0x6d4d, 0x6c24,
+        0x6af4, 0x69be, 0x6881, 0x673e, 0x65f5, 0x64a7, 0x6354, 0x61fb, 0x609e, 0x5f3c, 0x5dd6, 0x5c6c, 0x5afe, 0x598d, 0x5818, 0x56a1,
+        0x5527, 0x53ab, 0x522d, 0x50ac, 0x4f2b, 0x4da8, 0x4c24, 0x4a9f, 0x491a, 0x4794, 0x460f, 0x448a, 0x4305, 0x4182, 0x3fff, 0x3e7e,
+        0x3cfe, 0x3b7f, 0x3a03, 0x3889, 0x3712, 0x359d, 0x342a, 0x32bb, 0x314f, 0x2fe7, 0x2e82, 0x2d21, 0x2bc4, 0x2a6b, 0x2916, 0x27c5,
+        0x267a, 0x2533, 0x23f0, 0x22b3, 0x217b, 0x2048, 0x1f1a, 0x1df2, 0x1ccf, 0x1bb2, 0x1a9a, 0x1988, 0x187c, 0x1776, 0x1676, 0x157b,
+        0x1487, 0x1398, 0x12b0, 0x11cd, 0x10f1, 0x101b, 0x0f4a, 0x0e80, 0x0dbc, 0x0cfe, 0x0c46, 0x0b93, 0x0ae7, 0x0a40, 0x09a0, 0x0905,
+        0x0870, 0x07e0, 0x0756, 0x06d2, 0x0653, 0x05d9, 0x0564, 0x04f5, 0x048b, 0x0426, 0x03c6, 0x036a, 0x0314, 0x02c1, 0x0274, 0x022b,
+    };
+
+    for (size_t i = 0; i < BUFFER_SIZE; i++)
+    {
+        buffer_a[i] = (window[i] * buffer_a[i]) >> 15;
+        buffer_b[i] = (window[i] * buffer_b[i]) >> 15;
+        buffer_c[i] = (window[i] * buffer_c[i]) >> 15;
     }
 }
 
@@ -394,16 +434,31 @@ void process_audio(void)
     printf("Shifts: B–A = %+5.3f ms,  C–A = %+5.3f ms,  B–C = %+5.3f ms\n",
            dt_ab * 1000.0f, dt_ac * 1000.0f, dt_bc * 1000.0f);
 
-    compute_sound_source_position(shift_ab, shift_ac, shift_bc);
+    compute_sound_source_position();
 }
 
 //
 // ———————————————— LOCALIZATION (TDOA) ————————————————
 //
-void compute_sound_source_position(int shift_ab, int shift_ac, int shift_bc)
+void compute_sound_source_position(void)
 {
     // convert sample‐shift → range‑difference
     float rdiff_ab = SPEED_OF_SOUND_MPS * ((float)shift_ab / SAMPLE_RATE_HZ);
     float rdiff_ac = SPEED_OF_SOUND_MPS * ((float)shift_ac / SAMPLE_RATE_HZ);
     float rdiff_bc = SPEED_OF_SOUND_MPS * ((float)shift_bc / SAMPLE_RATE_HZ);
+
+    // 1) Bearing (far‑field):  rdiff_ab = dAB * cos(theta)
+    float cos_theta = rdiff_ab / MIC_DIST_AB_M;
+    if (cos_theta > 1.0f)
+        cos_theta = 1.0f;
+    if (cos_theta < -1.0f)
+        cos_theta = -1.0f;
+    float theta = acosf(cos_theta);
+    // restore sign using shift_ab
+    if (shift_ab < 0)
+        theta = -theta;
+    sound_angle_deg = theta * 180.0f / M_PI;
+
+    // 2) “Estimated distance” as the average absolute path‑difference
+    sound_distance_m = (fabsf(rdiff_ab) + fabsf(rdiff_ac) + fabsf(rdiff_bc)) / 3.0f;
 }
