@@ -405,8 +405,6 @@ int find_best_correlation(const int16_t *ref,
         {
             score += (int32_t)(*p) * (int32_t)(*q);
         }
-        // normalize so that shorter overlaps don’t bias us
-        score = (score * (int)len) / n;
 
         if (score > best_score)
         {
