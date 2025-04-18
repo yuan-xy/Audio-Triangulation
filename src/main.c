@@ -1,210 +1,275 @@
-/**
- * V. Hunter Adams (vha3@cornell.edu)
- * 
- * This demonstration utilizes the MPU6050.
- * It gathers raw accelerometer/gyro measurements, scales
- * them, and plots them to the VGA display. The top plot
- * shows gyro measurements, bottom plot shows accelerometer
- * measurements.
- * 
- * HARDWARE CONNECTIONS
- *  - GPIO 16 ---> VGA Hsync
- *  - GPIO 17 ---> VGA Vsync
- *  - GPIO 18 ---> 330 ohm resistor ---> VGA Red
- *  - GPIO 19 ---> 330 ohm resistor ---> VGA Green
- *  - GPIO 20 ---> 330 ohm resistor ---> VGA Blue
- *  - RP2040 GND ---> VGA GND
- *  - GPIO 8 ---> MPU6050 SDA
- *  - GPIO 9 ---> MPU6050 SCL
- *  - 3.3v ---> MPU6050 VCC
- *  - RP2040 GND ---> MPU6050 GND
- */
+// main.c
+// Audio Triangulation on Raspberry Pi Pico
+// --------------------------------------------------
+// Read three microphones, buffer 256 samples each at a fixed rate,
+// normalize DC offset, detect activity, then compute pairwise
+// cross‑correlation shifts to feed into a TDOA localization solver.
 
-
-// Include standard libraries
 #include <stdio.h>
-#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <limits.h>
 #include <math.h>
-#include <string.h>
-// Include PICO libraries
 #include "pico/stdlib.h"
-#include "pico/multicore.h"
-// Include hardware libraries
-#include "hardware/pwm.h"
-#include "hardware/dma.h"
-#include "hardware/irq.h"
 #include "hardware/adc.h"
-#include "hardware/pio.h"
-#include "hardware/i2c.h"
-// Include custom libraries
 
-#include "pt_cornell_rp2040_v1_3.h"
+//
+// ———————————————— CONFIGURATION ————————————————
+//
 
-// Some macros for max/min/abs
-#define min(a,b) (((a)<(b)) ? (a):(b))
-#define max(a,b) (((a)<(b)) ? (b):(a))
-#define abs(a) (((a)>(0)) ? (a):-(a))
+// Audio sampling
+#define SAMPLE_RATE_HZ      100000U               // 100 kHz sample rate
+#define SAMPLE_PERIOD_US    (1000000 / SAMPLE_RATE_HZ)
+#define BUFFER_SIZE         256U
+#define MAX_SHIFT_SAMPLES   32                    // ±32 samples max for correlation
 
-// Some paramters for PWM
-#define WRAPVAL 5000
-#define CLKDIV  25.0
-uint slice_num ;
+// Physical constants
+#define SPEED_OF_SOUND_MPS  343.0f                // m/s
 
+// Geometry (meters)
+#define MIC_DIST_AB_M       0.10f                 // Mic A ↔ B
+#define MIC_DIST_BC_M       0.10f                 // Mic B ↔ C
+#define MIC_DIST_CA_M       0.14f                 // Mic C ↔ A
 
+// Activity Detection
+#define ACTIVITY_THRESHOLD  1024U                 // energy threshold
 
-static unsigned char buffer_index = 0;
-static int buffer_a[256] = {};
-static int buffer_b[256] = {};
-static int buffer_c[256] = {};
+// ADC channels (GPIO26→ADC0, 27→ADC1, 28→ADC2)
+#define MIC_A_ADC_CH        0
+#define MIC_B_ADC_CH        1
+#define MIC_C_ADC_CH        2
 
-void push(int a, int b, int c) {
-    buffer_a[buffer_index] = a; 
-    buffer_b[buffer_index] = b;
-    buffer_c[buffer_index] = c;
-    buffer_index += 1;
-}
+#define ABS(x)              ((x) < 0 ? -(x) : (x))
 
-void sample_all_adcs() {
-    // Read ADC0
-    adc_select_input(0);
-    uint16_t adc0 = adc_read();
-    // Read ADC1
-    adc_select_input(1);
-    uint16_t adc1 = adc_read();
-    // Read ADC2
-    adc_select_input(2);
-    uint16_t adc2 = adc_read();
+//
+// ———————————————— GLOBAL BUFFERS ————————————————
+//
+static int16_t buffer_a[BUFFER_SIZE];
+static int16_t buffer_b[BUFFER_SIZE];
+static int16_t buffer_c[BUFFER_SIZE];
 
-    // Push the values to the buffer
-    push(adc0, adc1, adc2);
-}
+//
+// ———————————————— MIC POSITION STRUCT ————————————————
+//
+typedef struct { float x, y; } point2d_t;
 
-void load_buffers() {
-    absolute_time_t now;
-    
-    buffer_index = 0;
-    now = get_absolute_time();
-    for (int i = 0; i < 256; i++) {
-        now += make_timeout_time_ms(20);
-        busy_wait_until(now);
-        sample_all_adcs();
-    }
+// will hold the *centered* coords of each mic
+static point2d_t micA, micB, micC;
 
-    int total_a,  total_b,  total_c;
-    total_a = 0, total_b = 0, total_c = 0;
+//
+// ———————————————— PROTOTYPES ————————————————
+//
+void     init_adc(void);
+void     init_mic_positions(void);
+void     load_audio_buffers(void);
+void     normalize_buffers(void);
+bool     buffer_has_signal(const int16_t *buf);
+int      find_best_correlation(const int16_t *ref,
+                                const int16_t *sig,
+                                size_t len,
+                                int max_shift);
+void     process_audio(void);
+void     compute_sound_source_position(int shift_ab, int shift_ac, int shift_bc);
 
-    for (int i = 0; i < 256; i++) {
-        total_a += buffer_a[i];
-        total_b += buffer_b[i];
-        total_c += buffer_c[i];
-    }
-
-    total_a >>= 8;
-    total_b >>= 8;
-    total_c >>= 8;
-
-    for (int i = 0; i < 256; i++) {
-        buffer_a[i] -= total_a;
-        buffer_b[i] -= total_b;
-        buffer_c[i] -= total_c;
-    }
-
-}
-
-bool buffer_juicy() {
-    long power = 0;
-    for (int i = 0; i < 256; i++) {
-        power += (buffer_a[i]) * (buffer_a[i]);
-        power += (buffer_b[i]) * (buffer_b[i]);
-        power += (buffer_c[i]) * (buffer_c[i]);
-    }
-    long average_power = power / 768;
-    return (average_power >= 1024);
-}
-
-// Interrupt service routine
-void on_pwm_wrap() {
-
-    // Clear the interrupt flag that brought us here
-    pwm_clear_irq(pwm_gpio_to_slice_num(5));
-
-}
-
-// Thread that draws to VGA display
-static PT_THREAD (protothread_vga(struct pt *pt))
-{
-    // Indicate start of thread
-    PT_BEGIN(pt) ;
-
-    // Indicate end of thread
-    PT_END(pt);
-}
-
-// User input thread. User can change draw speed
-static PT_THREAD (protothread_serial(struct pt *pt))
-{
-    PT_BEGIN(pt) ;
- 
-    PT_END(pt) ;
-}
-
-// Entry point for core 1
-void core1_entry() {
-    pt_add_thread(protothread_vga) ;
-    pt_schedule_start ;
-}
-
+//
+// ———————————————— MAIN ————————————————
+//
 int main() {
-
-    // Initialize stdio
     stdio_init_all();
-    adc_init();
-    adc_gpio_init(26); // ADC0
-    adc_gpio_init(27); // ADC1
-    adc_gpio_init(28); // ADC2
+    init_adc();
+    init_mic_positions();
 
-    ////////////////////////////////////////////////////////////////////////
-    ///////////////////////// PWM CONFIGURATION ////////////////////////////
-    ////////////////////////////////////////////////////////////////////////
-    // Tell GPIO's 4,5 that they allocated to the PWM
-    gpio_set_function(5, GPIO_FUNC_PWM);
-    gpio_set_function(4, GPIO_FUNC_PWM);
+    printf("=== Audio Triangulation ===\n"
+           " Mic A = (%.3f, %.3f)\n"
+           " Mic B = (%.3f, %.3f)\n"
+           " Mic C = (%.3f, %.3f)\n\n",
+           micA.x, micA.y,
+           micB.x, micB.y,
+           micC.x, micC.y);
 
-    // Find out which PWM slice is connected to GPIO 5 (it's slice 2, same for 4)
-    slice_num = pwm_gpio_to_slice_num(5);
+    while (1) {
+        load_audio_buffers();
+        normalize_buffers();
 
-    // Mask our slice's IRQ output into the PWM block's single interrupt line,
-    // and register our interrupt handler
-    pwm_clear_irq(slice_num);
-    pwm_set_irq_enabled(slice_num, true);
-    irq_set_exclusive_handler(PWM_IRQ_WRAP, on_pwm_wrap);
-    irq_set_enabled(PWM_IRQ_WRAP, true);
-
-    // This section configures the period of the PWM signals
-    pwm_set_wrap(slice_num, WRAPVAL) ;
-    pwm_set_clkdiv(slice_num, CLKDIV) ;
-
-    // This sets duty cycle
-    pwm_set_chan_level(slice_num, PWM_CHAN_B, 0);
-    pwm_set_chan_level(slice_num, PWM_CHAN_A, 0);
-
-    // Start the channel
-    pwm_set_mask_enabled((1u << slice_num));
-
-
-    ////////////////////////////////////////////////////////////////////////
-    ///////////////////////////// ROCK AND ROLL ////////////////////////////
-    ////////////////////////////////////////////////////////////////////////
-    // start core 1 
-    multicore_reset_core1();
-    multicore_launch_core1(core1_entry);
-
-    while(1) {
-        load_buffers();
-
-        if (buffer_juicy()) {
-            
+        if (buffer_has_signal(buffer_a)) {
+            process_audio();
         }
     }
+    return 0;
+}
 
+//
+// ———————————————— HARDWARE SETUP ————————————————
+//
+void init_adc(void) {
+    adc_init();
+    adc_gpio_init(26 + MIC_A_ADC_CH);
+    adc_gpio_init(26 + MIC_B_ADC_CH);
+    adc_gpio_init(26 + MIC_C_ADC_CH);
+}
+
+//
+// ———————————————— MIC GEOMETRY SETUP ————————————————
+//
+
+void init_mic_positions(void) {
+    // 1) build an un‑centered triangle: A'=(0,0), B'=(AB,0)
+    float dAB = MIC_DIST_AB_M;
+    float dBC = MIC_DIST_BC_M;
+    float dCA = MIC_DIST_CA_M;
+
+    // law of cosines to find C'
+    float xC = (dAB*dAB + dCA*dCA - dBC*dBC) / (2.0f * dAB);
+    float yC = sqrtf(fmaxf(0.0f, dCA*dCA - xC*xC));
+
+    point2d_t pA = { 0.0f, 0.0f };
+    point2d_t pB = { dAB,  0.0f };
+    point2d_t pC = { xC,   yC   };
+
+    // 2) compute centroid
+    float cx = (pA.x + pB.x + pC.x) / 3.0f;
+    float cy = (pA.y + pB.y + pC.y) / 3.0f;
+
+    // 3) shift so centroid → (0,0)
+    micA.x = pA.x - cx;  micA.y = pA.y - cy;
+    micB.x = pB.x - cx;  micB.y = pB.y - cy;
+    micC.x = pC.x - cx;  micC.y = pC.y - cy;
+
+    // 4) rotate so that micA lies on +X (angle = 0)
+    float theta = atan2f(micA.y, micA.x);    // current angle of A
+    float c     = cosf(-theta);
+    float s     = sinf(-theta);
+
+    // rotate A
+    {
+        float x = micA.x, y = micA.y;
+        micA.x = x*c - y*s;
+        micA.y = x*s + y*c;
+    }
+    // rotate B
+    {
+        float x = micB.x, y = micB.y;
+        micB.x = x*c - y*s;
+        micB.y = x*s + y*c;
+    }
+    // rotate C
+    {
+        float x = micC.x, y = micC.y;
+        micC.x = x*c - y*s;
+        micC.y = x*s + y*c;
+    }
+}
+
+
+//
+// ———————————————— BUFFER ACQUISITION ————————————————
+//
+void load_audio_buffers(void) {
+    const absolute_time_t period = make_timeout_time_us(SAMPLE_PERIOD_US);
+    absolute_time_t deadline   = get_absolute_time();
+
+    for (size_t i = 0; i < BUFFER_SIZE; i++) {
+        adc_select_input(MIC_A_ADC_CH);
+        buffer_a[i] = (int16_t)adc_read();
+        adc_select_input(MIC_B_ADC_CH);
+        buffer_b[i] = (int16_t)adc_read();
+        adc_select_input(MIC_C_ADC_CH);
+        buffer_c[i] = (int16_t)adc_read();
+
+        deadline = deadline + period;
+        busy_wait_until(deadline);
+    }
+}
+
+//
+// ———————————————— DC CANCELLATION ————————————————
+//
+void normalize_buffers(void) {
+    int32_t sum_a = 0, sum_b = 0, sum_c = 0;
+    for (size_t i = 0; i < BUFFER_SIZE; i++) {
+        sum_a += buffer_a[i];
+        sum_b += buffer_b[i];
+        sum_c += buffer_c[i];
+    }
+    int16_t mA = sum_a / BUFFER_SIZE;
+    int16_t mB = sum_b / BUFFER_SIZE;
+    int16_t mC = sum_c / BUFFER_SIZE;
+
+    for (size_t i = 0; i < BUFFER_SIZE; i++) {
+        buffer_a[i] -= mA;
+        buffer_b[i] -= mB;
+        buffer_c[i] -= mC;
+    }
+}
+
+//
+// ———————————————— ACTIVITY DETECTION ————————————————
+//
+bool buffer_has_signal(const int16_t *buf) {
+    uint64_t energy = 0;
+    for (size_t i = 0; i < BUFFER_SIZE; i++) {
+        energy += (int32_t)buf[i] * buf[i];
+    }
+    return (energy / BUFFER_SIZE) > ACTIVITY_THRESHOLD;
+}
+
+//
+// ———————————————— CROSS‐CORRELATION ————————————————
+//
+int find_best_correlation(const int16_t *ref,
+                          const int16_t *sig,
+                          size_t len,
+                          int max_shift)
+{
+    int   best_shift = 0;
+    int64_t best_score = INT64_MIN;
+
+    for (int s = -max_shift; s <= max_shift; s++) {
+        int64_t score = 0;
+        const int16_t *p = (s < 0 ? ref - s : ref);
+        const int16_t *q = (s < 0 ? sig      : sig + s);
+        int     n = len - ABS(s);
+
+        for (int i = 0; i < n; i++, p++, q++) {
+            score += (int32_t)(*p) * (int32_t)(*q);
+        }
+        // normalize so that shorter overlaps don’t bias us
+        score = (score * (int)len) / n;
+
+        if (score > best_score) {
+            best_score = score;
+            best_shift = s;
+        }
+    }
+    return best_shift;
+}
+
+//
+// ———————————————— AUDIO PROCESSING PIPELINE ————————————————
+//
+void process_audio(void) {
+    int shift_ab = find_best_correlation(buffer_a, buffer_b, BUFFER_SIZE, MAX_SHIFT_SAMPLES);
+    int shift_ac = find_best_correlation(buffer_a, buffer_c, BUFFER_SIZE, MAX_SHIFT_SAMPLES);
+    int shift_bc = find_best_correlation(buffer_b, buffer_c, BUFFER_SIZE, MAX_SHIFT_SAMPLES);
+
+    float dt_ab = (float)shift_ab / (float)SAMPLE_RATE_HZ;
+    float dt_ac = (float)shift_ac / (float)SAMPLE_RATE_HZ;
+    float dt_bc = (float)shift_bc / (float)SAMPLE_RATE_HZ;
+
+    printf("Shifts: B–A = %+5.3f ms,  C–A = %+5.3f ms,  B–C = %+5.3f ms\n",
+           dt_ab * 1000.0f, dt_ac * 1000.0f, dt_bc * 1000.0f);
+
+    compute_sound_source_position(shift_ab, shift_ac);
+}
+
+//
+// ———————————————— LOCALIZATION (TDOA) ————————————————
+//
+void compute_sound_source_position(int shift_ab, int shift_ac, int shift_bc) {
+    // convert sample‐shift → range‑difference
+    float rdiff_ab = SPEED_OF_SOUND_MPS * ((float)shift_ab / SAMPLE_RATE_HZ);
+    float rdiff_ac = SPEED_OF_SOUND_MPS * ((float)shift_ac / SAMPLE_RATE_HZ);
+    float rdiff_bc = SPEED_OF_SOUND_MPS * ((float)shift_bc / SAMPLE_RATE_HZ);
+
+    
 }
