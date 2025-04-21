@@ -145,6 +145,7 @@ void compute_sound_source_position(void);
 //
 
 static struct pt_sem vga_semaphore;
+static struct pt_sem load_audio_semaphore;
 static char screentext[256];
 static uint32_t old_mic_vals[3] = {0, 0, 0};
 
@@ -175,15 +176,7 @@ static PT_THREAD(protothread_vga_debug(struct pt *pt))
         setCursor(0, 0);
         setTextSize(1);
         setTextColor2(GREEN, BLACK);
-        // writeString("--= Mic Power Levels =--\n");
-        // sprintf(screentext,
-        //         "Power Mic A:%5u                            \n"
-        //         "Power Mic B:%5u                            \n"
-        //         "Power Mic C:%5u                            \n",
-        //         old_mic_vals[0], old_mic_vals[1], old_mic_vals[2]);
-        // writeString(screentext);
-        // setCursor(0, 0);
-        // setTextColor(GREEN);
+
         writeString("--= Mic Power Levels =--\n");
         sprintf(screentext,
             "Power Mic A:%5u                            \n"
@@ -216,6 +209,8 @@ static PT_THREAD(protothread_vga_debug(struct pt *pt))
                 micB.x, micB.y,
                 micC.x, micC.y);
         writeString(screentext);
+
+        PT_SEM_SIGNAL(pt, &load_audio_semaphore);
     }
 
     PT_END(pt);
@@ -226,7 +221,9 @@ static PT_THREAD(protothread_sample_and_compute(struct pt *pt))
     PT_BEGIN(pt);
     while (1)
     {
+        PT_SEM_WAIT(pt, &load_audio_semaphore);
         load_audio_buffers();
+        PT_SEM_SIGNAL(pt, &vga_semaphore);
         window_buffers();
         normalize_buffers();
 
@@ -239,10 +236,7 @@ static PT_THREAD(protothread_sample_and_compute(struct pt *pt))
             mic_power_c > ACTIVITY_THRESHOLD)
         {
             process_audio();
-            PT_YIELD_usec(50000); // 10 ms delay
-            PT_SEM_SIGNAL(pt, &vga_semaphore);
         }
-
     }
     PT_END(pt);
 }
@@ -367,8 +361,7 @@ static inline int16_t adc12_to_fix15(uint16_t raw12)
 
 void load_audio_buffers(void)
 {
-    // const absolute_time_t period = make_timeout_time_us(SAMPLE_PERIOD_US);
-    // absolute_time_t deadline = get_absolute_time();
+    absolute_time_t deadline = get_absolute_time();
 
     for (size_t i = 0; i < BUFFER_SIZE; i++)
     {
@@ -379,8 +372,8 @@ void load_audio_buffers(void)
         adc_select_input(MIC_C_ADC_CH);
         buffer_c[i] = adc12_to_fix15(adc_read());
 
-        // deadline = deadline + period;
-        // busy_wait_until(deadline);
+        deadline = delayed_by_us(deadline, SAMPLE_PERIOD_US);
+        busy_wait_until(deadline);
     }
 }
 
