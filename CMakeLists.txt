@@ -1,3 +1,17 @@
+# == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
+if(WIN32)
+    set(USERHOME $ENV{USERPROFILE})
+else()
+    set(USERHOME $ENV{HOME})
+endif()
+set(sdkVersion 2.1.1)
+set(toolchainVersion 14_2_Rel1)
+set(picotoolVersion 2.1.1)
+set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
+if (EXISTS ${picoVscode})
+    include(${picoVscode})
+endif()
+# ====================================================================================
 # CMakeLists.txt
 # ——————————————————————————————————————————————————————————————————————————————
 cmake_minimum_required(VERSION 3.13)
@@ -59,8 +73,6 @@ target_sources(${PROJECT_NAME}
     PRIVATE
         ${PROJECT_SOURCES}
         ${PROJECT_HEADERS}
-        src/vga16_graphics.c
-
 )
 
 # Make “#include <foo.h>” pick up anything in src/ or src/
@@ -75,7 +87,21 @@ pico_enable_stdio_uart(${PROJECT_NAME} 0)
 
 # —————— Link libraries ——————
 target_link_libraries(${PROJECT_NAME}
-pico_stdlib pico_bootsel_via_double_reset pico_multicore hardware_pwm hardware_dma hardware_irq hardware_adc hardware_pio hardware_i2c hardware_spi hardware_sync hardware_pwm hardware_dma hardware_adc hardware_i2c hardware_uart hardware_timer hardware_pio)
+    pico_stdlib
+    pico_bootsel_via_double_reset
+    pico_multicore
+
+    hardware_pwm
+    hardware_dma
+    hardware_irq
+    hardware_adc
+    hardware_pio
+    hardware_i2c
+    hardware_spi
+    hardware_sync
+    hardware_uart
+    hardware_timer
+)
 
 if (PICO_CYW43_SUPPORTED)
     target_link_libraries(${PROJECT_NAME}
