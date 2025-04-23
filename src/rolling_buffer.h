@@ -4,6 +4,8 @@
 #include <buffer.h>
 #include <stdbool.h>
 
+#define BUFFER_QUARTER (BUFFER_SIZE >> 2)
+
 #define SAMPLE_POWER(sample) ((int64_t)(sample) * (sample))
 
 struct rolling_buffer_t

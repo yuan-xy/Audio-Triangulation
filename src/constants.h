@@ -5,12 +5,6 @@
 typedef int64_t power_t;
 typedef int16_t sample_t;
 
-
-#define BUFFER_SIZE_BITS 9
-#define BUFFER_SIZE (1 << BUFFER_SIZE_BITS)
-
-#define BUFFER_QUARTER (BUFFER_SIZE >> 2)
-
 // Audio sampling
 #define SAMPLE_RATE_HZ 40000 // 50 kHz sample rate
 #define SAMPLE_PERIOD_US (1000000 / SAMPLE_RATE_HZ)

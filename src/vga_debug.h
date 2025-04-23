@@ -12,7 +12,7 @@
 #include <vga/vga16_graphics.h>
 
 #include <constants.h>
-#include <point2d.h>
+#include <point.h>
 #include <sample_compute.h>
 
 #include <string.h>
@@ -161,9 +161,9 @@ static PT_THREAD(protothread_vga_debug(struct pt *pt))
         power_t max_abs = 1;
         for (int i = 0; i < CORRELATION_BUFFER_SIZE; ++i)
         {
-            power_t a = llabs(corr_ab.correlations[i]);
-            power_t b = llabs(corr_ac.correlations[i]);
-            power_t c = llabs(corr_bc.correlations[i]);
+            power_t a = ABS(corr_ab.correlations[i]);
+            power_t b = ABS(corr_ac.correlations[i]);
+            power_t c = ABS(corr_bc.correlations[i]);
             if (a > max_abs)
                 max_abs = a;
             if (b > max_abs)

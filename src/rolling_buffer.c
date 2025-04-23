@@ -12,26 +12,22 @@ void rolling_buffer_init(struct rolling_buffer_t *buf)
 
 void rolling_buffer_push(struct rolling_buffer_t *buf, sample_t sample)
 {
-    int64_t power = sample;
-
-    int sub_index = (int)buf->head + (BUFFER_SIZE >> 4);
-    int add_index = (int)buf->head - (BUFFER_SIZE >> 4);
-
-    if (sub_index >= BUFFER_SIZE)
-        sub_index -= BUFFER_SIZE;
-
-    if (add_index < 0)
-        add_index += BUFFER_SIZE;
+    int sub_index = (int)buf->head + BUFFER_QUARTER;
+    sub_index = sub_index < BUFFER_SIZE - BUFFER_QUARTER ? sub_index + BUFFER_QUARTER : sub_index + BUFFER_QUARTER - BUFFER_SIZE;
 
     buf->total -= buf->buffer[sub_index];
     buf->power -= SAMPLE_POWER(buf->buffer[sub_index]);
+
+    int add_index = (int)buf->head - BUFFER_QUARTER;
+    add_index = add_index < 0 ? BUFFER_SIZE + add_index : add_index;
+
     buf->total += buf->buffer[add_index];
     buf->power += SAMPLE_POWER(buf->buffer[add_index]);
 
     buf->buffer[buf->head] = sample;
 
-    buf->head++;
-    if (buf->head >= BUFFER_SIZE) {
+    if (++buf->head >= BUFFER_SIZE)
+    {
         buf->head = 0;
         buf->is_full = true;
     }

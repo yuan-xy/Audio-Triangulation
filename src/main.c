@@ -32,7 +32,7 @@
 #include <pico/pt_cornell_rp2040_v1_3.h>
 
 #include <constants.h>
-#include <point2d.h>
+#include <point.h>
 #include <buffer.h>
 #include <rolling_buffer.h>
 #include <correlations.h>

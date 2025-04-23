@@ -1,7 +1,7 @@
 #pragma once
 
 #include <constants.h>
-#include <point2d.h>
+#include <point.h>
 
 extern point2d_t mic_a_location;
 extern point2d_t mic_b_location;
