@@ -18,7 +18,8 @@ void buffer_normalize_range(struct buffer_t *buf)
     {
         int32_t sample = buf->buffer[i];
         sample = (sample < 0 ? -sample : sample);
-        if (sample > INT16_MAX)
+        
+        if (sample > max)
             max = sample;
     }
 
