@@ -6,9 +6,9 @@ static power_t old_corr_max = 1;
 void vga_draw_correlations()
 {
     const int lane_h = PLOT_HEIGHT / 3;
-    const int baseA = PLOT_Y0 + lane_h / 2;
-    const int baseB = PLOT_Y0 + lane_h + lane_h / 2;
-    const int baseC = PLOT_Y0 + 2 * lane_h + lane_h / 2;
+    const int baseA = PLOT_Y1 + lane_h / 2;
+    const int baseB = PLOT_Y1 + lane_h + lane_h / 2;
+    const int baseC = PLOT_Y1 + 2 * lane_h + lane_h / 2;
     const float dx_corr = (float)PLOT_WIDTH / (CORRELATION_BUFFER_SIZE - 1);
 
     // Erase old correlation curves
