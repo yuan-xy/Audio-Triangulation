@@ -23,5 +23,3 @@ typedef int16_t sample_t;
 #define MIC_A_ADC_CH 0
 #define MIC_B_ADC_CH 1
 #define MIC_C_ADC_CH 2
-
-#define CORR_SUM_THRESHOLD  (((int64_t)50000)*((int64_t)1000000))  // tune this to your environment

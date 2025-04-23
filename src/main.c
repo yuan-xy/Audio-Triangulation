@@ -49,8 +49,6 @@ int main(void)
     // Initialize stdio, VGA, LED, and ADC hardware
     stdio_init_all();
     initVGA();
-    gpio_init(LED_PIN);
-    gpio_set_dir(LED_PIN, GPIO_OUT);
 
     adc_init();
     adc_gpio_init(26 + MIC_A_ADC_CH);

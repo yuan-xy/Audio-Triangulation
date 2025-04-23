@@ -34,9 +34,9 @@ void vga_draw_correlations()
     power_t max_abs = 1;
     for (int i = 0; i < CORRELATION_BUFFER_SIZE; ++i)
     {
-        power_t a = ABS(corr_ab.correlations[i]);
-        power_t b = ABS(corr_ac.correlations[i]);
-        power_t c = ABS(corr_bc.correlations[i]);
+        power_t a = corr_ab.correlations[i];
+        power_t b = corr_ac.correlations[i];
+        power_t c = corr_bc.correlations[i];
 
         a = (a > 0 ? a : -a);
         b = (b > 0 ? b : -b);
