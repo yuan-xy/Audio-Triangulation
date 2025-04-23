@@ -35,17 +35,6 @@ static struct correlations_t corr_bc;
 static struct pt_sem load_audio_semaphore;
 static struct pt_sem vga_semaphore;
 
-// Convert 12-bit unsigned (0..4095) to Q1.15 signed (sample_t)
-static inline sample_t adc12_to_fix15(uint16_t raw12)
-{
-    int32_t v = (int32_t)raw12 - 2048;
-    if (v > 2047)
-        v = 2047;
-    if (v < -2048)
-        v = -2048;
-    return (sample_t)(v << 2);
-}
-
 static PT_THREAD(protothread_sample_and_compute(struct pt *pt))
 {
     PT_BEGIN(pt);
@@ -68,21 +57,23 @@ static PT_THREAD(protothread_sample_and_compute(struct pt *pt))
         while (true)
         {
             // Read mic A
-            sA = adc12_to_fix15(adc_read());
-            sB = adc12_to_fix15(adc_read());
-            sC = adc12_to_fix15(adc_read());
+            sA = adc_read();
+            sB = adc_read();
+            sC = adc_read();
 
             rolling_buffer_push(&mic_a_rb, sA);
             rolling_buffer_push(&mic_b_rb, sB);
             rolling_buffer_push(&mic_c_rb, sC);
 
-            if (
-                mic_a_rb.is_full &&
-                mic_b_rb.is_full &&
-                mic_c_rb.is_full && (rolling_buffer_get_power(&mic_a_rb) > POWER_THRESHOLD || rolling_buffer_get_power(&mic_b_rb) > POWER_THRESHOLD || rolling_buffer_get_power(&mic_c_rb) > POWER_THRESHOLD))
+            const bool is_full = mic_a_rb.is_full && mic_b_rb.is_full && mic_c_rb.is_full;
+            if (is_full)
             {
-                // Break out of the loop if all buffers are full
-                break;
+                const bool mic_a_active = rolling_buffer_get_power(&mic_a_rb) > POWER_THRESHOLD;
+                const bool mic_b_active = rolling_buffer_get_power(&mic_b_rb) > POWER_THRESHOLD;
+                const bool mic_c_active = rolling_buffer_get_power(&mic_c_rb) > POWER_THRESHOLD;
+
+                if (true || mic_a_active || mic_b_active || mic_c_active)
+                    break;
             }
 
             // Maintain real-time sampling rate
