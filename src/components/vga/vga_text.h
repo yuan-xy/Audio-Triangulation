@@ -8,12 +8,12 @@ void vga_draw_text()
 
     writeString("--= Mic Power Levels =--\n");
     sprintf(screentext,
-            "Power Mic A:%10llu        \n"
-            "Power Mic B:%10llu        \n"
-            "Power Mic C:%10llu        \n",
-            buffer_a.power, 
-            buffer_b.power,
-            buffer_c.power);
+            "Mic A - Total: %10lli - Rolling: %10lli\n"
+            "Mic B - Total: %10lli - Rolling: %10lli\n"
+            "Mic C - Total: %10lli - Rolling: %10lli\n",
+            buffer_a.power, rolling_buffer_get_power(&mic_a_rb),
+            buffer_b.power, rolling_buffer_get_power(&mic_b_rb),
+            buffer_c.power, rolling_buffer_get_power(&mic_c_rb));;
     writeString(screentext);
 
     // line 1: sample‐shifts

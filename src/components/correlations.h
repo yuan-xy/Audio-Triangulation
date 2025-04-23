@@ -3,6 +3,8 @@
 #include <components/constants.h>
 #include <components/buffer.h>
 
+#define CORRELATION_BUFFER_SIZE (2 * MAX_SHIFT_SAMPLES + 1)
+
 struct correlations_t
 {
     power_t correlations[CORRELATION_BUFFER_SIZE];

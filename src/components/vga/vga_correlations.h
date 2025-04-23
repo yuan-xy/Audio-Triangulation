@@ -37,6 +37,11 @@ void vga_draw_correlations()
         power_t a = ABS(corr_ab.correlations[i]);
         power_t b = ABS(corr_ac.correlations[i]);
         power_t c = ABS(corr_bc.correlations[i]);
+
+        a = (a > 0 ? a : -a);
+        b = (b > 0 ? b : -b);
+        c = (c > 0 ? c : -c);
+
         if (a > max_abs)
             max_abs = a;
         if (b > max_abs)

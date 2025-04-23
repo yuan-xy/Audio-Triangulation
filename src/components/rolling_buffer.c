@@ -14,7 +14,7 @@ void rolling_buffer_init(struct rolling_buffer_t *buf)
 void rolling_buffer_push(struct rolling_buffer_t *buf, sample_t sample)
 {
     int sub_index = (int)buf->head + BUFFER_QUARTER;
-    sub_index = sub_index < BUFFER_SIZE - BUFFER_QUARTER ? sub_index + BUFFER_QUARTER : sub_index + BUFFER_QUARTER - BUFFER_SIZE;
+    sub_index = sub_index < BUFFER_SIZE ? sub_index : sub_index - BUFFER_SIZE;
 
     buf->total -= buf->buffer[sub_index];
     buf->power -= SAMPLE_POWER(buf->buffer[sub_index]);
