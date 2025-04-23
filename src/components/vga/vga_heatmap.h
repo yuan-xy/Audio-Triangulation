@@ -2,6 +2,8 @@
 #define HEATMAP_WIDTH (2 * POS_HALF_W + 1)
 #define HEATMAP_HEIGHT (2 * POS_HALF_H + 1)
 
+#define EXPECTED_HEIGHT_OFFSET 0.2f
+
 static bool heatmap_precomputed = false;
 
 static uint8_t heat_idx_ab[HEATMAP_HEIGHT][HEATMAP_WIDTH];
@@ -17,9 +19,9 @@ void vga_init_heatmap()
         {
             float x_m = (x - POS_HALF_W) / POS_SCALE;
             // distances to each mic
-            float dA = hypotf(x_m - mic_a_location.x, y_m - mic_a_location.y);
-            float dB = hypotf(x_m - mic_b_location.x, y_m - mic_b_location.y);
-            float dC = hypotf(x_m - mic_c_location.x, y_m - mic_c_location.y);
+            float dA = hypotf(EXPECTED_HEIGHT_OFFSET, hypotf(x_m - mic_a_location.x, y_m - mic_a_location.y));
+            float dB = hypotf(EXPECTED_HEIGHT_OFFSET, hypotf(x_m - mic_b_location.x, y_m - mic_b_location.y));
+            float dC = hypotf(EXPECTED_HEIGHT_OFFSET, hypotf(x_m - mic_c_location.x, y_m - mic_c_location.y));
             // time differences (s)
             float dt_ab = (dB - dA) / SPEED_OF_SOUND_MPS;
             float dt_ac = (dC - dA) / SPEED_OF_SOUND_MPS;
