@@ -4,6 +4,7 @@ void rolling_buffer_init(struct rolling_buffer_t *buf)
 {
     buf->head = 0;
     buf->power = 0;
+    buf->total = 0;
     buf->is_full = false;
 
     for (int i = 0; i < BUFFER_SIZE; i++)
