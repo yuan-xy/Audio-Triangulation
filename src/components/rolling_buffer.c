@@ -66,5 +66,6 @@ void rolling_buffer_write_out(const struct rolling_buffer_t *buf, struct buffer_
 
 power_t rolling_buffer_get_power(const struct rolling_buffer_t *buf)
 {
-    return buf->power - (power_t)(buf->total * buf->total) >> BUFFER_SUM_SIZE_BITS;
+    const power_t total = buf->total >> BUFFER_SIZE_BITS;
+    return buf->power - total * total;
 }
