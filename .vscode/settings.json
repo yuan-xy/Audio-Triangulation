@@ -37,6 +37,18 @@
     "raspberry-pi-pico.cmakePath": "${HOME}/.pico-sdk/cmake/v3.31.5/bin/cmake",
     "raspberry-pi-pico.ninjaPath": "${HOME}/.pico-sdk/ninja/v1.12.1/ninja",
     "files.associations": {
-        "compare": "c"
+        "compare": "c",
+        "algorithm": "c",
+        "numeric": "c",
+        "rolling_buffer.h": "c",
+        "constants.h": "c",
+        "correlations.h": "c",
+        "buffer.h": "c",
+        "functional": "c",
+        "sample_compute.h": "c",
+        "pt_cornell_rp2040_v1_3.h": "c",
+        "vga16_graphics.h": "c",
+        "microphones.h": "c",
+        "adc.h": "c"
     }
 }

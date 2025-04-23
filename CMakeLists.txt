@@ -62,7 +62,6 @@ pico_generate_pio_header(audio_triangulation
 # Recursively grab all .c/.cpp/.h under src/
 file(GLOB_RECURSE PROJECT_SOURCES
      "${CMAKE_CURRENT_LIST_DIR}/src/*.c"
-     "${CMAKE_CURRENT_LIST_DIR}/src/*.cpp"
 )
 file(GLOB_RECURSE PROJECT_HEADERS
      "${CMAKE_CURRENT_LIST_DIR}/src/*.h"
@@ -72,7 +71,6 @@ file(GLOB_RECURSE PROJECT_HEADERS
 target_sources(${PROJECT_NAME}
     PRIVATE
         ${PROJECT_SOURCES}
-        ${PROJECT_HEADERS}
 )
 
 # Make “#include <foo.h>” pick up anything in src/ or src/

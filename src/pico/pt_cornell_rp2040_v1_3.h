@@ -1,6 +1,6 @@
-/* 
+/*
  * File:   pt_cornell_rp2040_v1.h
- * Author: brl4 Briuce Land
+ * Author: brl4 Bruce Land
  * Bruce R Land, Cornell University
  * Created on Dec 10, 2018
  */
