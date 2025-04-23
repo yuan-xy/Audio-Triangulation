@@ -11,6 +11,6 @@ struct correlations_t
 
 void correlations_init(
     struct correlations_t *corr,
-    struct buffer_t *buf_a,
-    struct buffer_t *buf_b);
+    const struct buffer_t *buf_a,
+    const struct buffer_t *buf_b);
 

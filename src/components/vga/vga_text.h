@@ -1,4 +1,4 @@
-static char screentext[256];
+static char screentext[512];
 
 void vga_draw_text()
 {
@@ -8,9 +8,9 @@ void vga_draw_text()
 
     writeString("--= Mic Power Levels =--\n");
     sprintf(screentext,
-            "Power Mic A:%5u                            \n"
-            "Power Mic B:%5u                            \n"
-            "Power Mic C:%5u                            \n",
+            "Power Mic A:%10llu        \n"
+            "Power Mic B:%10llu        \n"
+            "Power Mic C:%10llu        \n",
             buffer_a.power, 
             buffer_b.power,
             buffer_c.power);
@@ -20,9 +20,9 @@ void vga_draw_text()
     writeString("\n\n");
     writeString("--= Sample Shifts =--\n");
     sprintf(screentext,
-            "Shift AB:%+4d       \n"
-            "Shift AC:%+4d       \n"
-            "Shift BC:%+4d       \n",
+            "Shift AB:%+4d        \n"
+            "Shift AC:%+4d        \n"
+            "Shift BC:%+4d        \n",
             corr_ab.best_shift,
             corr_ac.best_shift,
             corr_bc.best_shift);
@@ -32,9 +32,9 @@ void vga_draw_text()
     writeString("\n\n");
     writeString("--= Mic Positions =--\n");
     sprintf(screentext,
-            "Mic A: (%.3f, %.3f)\n"
-            "Mic B: (%.3f, %.3f)\n"
-            "Mic C: (%.3f, %.3f)\n",
+            "Mic A: (%+5.3f, %+5.3f)\n"
+            "Mic B: (%+5.3f, %+5.3f)\n"
+            "Mic C: (%+5.3f, %+5.3f)\n",
             mic_a_location.x, mic_a_location.y,
             mic_b_location.x, mic_b_location.y,
             mic_c_location.x, mic_c_location.y);

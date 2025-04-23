@@ -22,6 +22,6 @@ struct rolling_buffer_t
 
 void rolling_buffer_init(struct rolling_buffer_t *buf);
 void rolling_buffer_push(struct rolling_buffer_t *buf, sample_t sample);
-void rolling_buffer_write_out(struct rolling_buffer_t *buf, struct buffer_t *src);
+void rolling_buffer_write_out(struct rolling_buffer_t *buf, struct buffer_t *dst);
 
-power_t rolling_buffer_get_power(struct rolling_buffer_t *buf);
+power_t rolling_buffer_get_power(const struct rolling_buffer_t *buf);

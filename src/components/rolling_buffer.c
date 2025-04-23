@@ -34,17 +34,17 @@ void rolling_buffer_push(struct rolling_buffer_t *buf, sample_t sample)
     }
 }
 
-void rolling_buffer_write_out(struct rolling_buffer_t *buf, struct buffer_t *src)
+void rolling_buffer_write_out(struct rolling_buffer_t *buf, struct buffer_t *dst)
 {
-    power_t src_total = 0;
+    power_t dst_total = 0;
 
     int i, j;
     for (i = 0, j = buf->head; j < BUFFER_SIZE; i++, j++)
     {
         const sample_t sample = buf->buffer[j];
 
-        src_total += sample;
-        src->buffer[i] = sample;
+        dst_total += sample;
+        dst->buffer[i] = sample;
 
         buf->buffer[j] = 0;
     }
@@ -53,19 +53,19 @@ void rolling_buffer_write_out(struct rolling_buffer_t *buf, struct buffer_t *src
     {
         const sample_t sample = buf->buffer[j];
 
-        src_total += sample;
-        src->buffer[i] = sample;
+        dst_total += sample;
+        dst->buffer[i] = sample;
 
         buf->buffer[j] = 0;
     }
 
-    const sample_t src_offset = src_total >> BUFFER_SIZE_BITS;
+    const sample_t dst_offset = dst_total >> BUFFER_SIZE_BITS;
     for (i = 0; i < BUFFER_SIZE; i++)
-        src->buffer[i] -= src_offset;
+        dst->buffer[i] -= dst_offset;
 
-    src->power = 0;
+    dst->power = 0;
     for (i = 0; i < BUFFER_SIZE; i++)
-        src->power += SAMPLE_POWER(src->buffer[i]);
+        dst->power += SAMPLE_POWER(dst->buffer[i]);
 
     buf->head = 0;
     buf->power = 0;
@@ -73,7 +73,7 @@ void rolling_buffer_write_out(struct rolling_buffer_t *buf, struct buffer_t *src
     buf->is_full = false;
 }
 
-power_t rolling_buffer_get_power(struct rolling_buffer_t *buf)
+power_t rolling_buffer_get_power(const struct rolling_buffer_t *buf)
 {
     return buf->power - (power_t)(buf->total * buf->total) >> BUFFER_SUM_SIZE_BITS;
 }
