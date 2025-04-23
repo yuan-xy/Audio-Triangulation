@@ -281,6 +281,8 @@ static PT_THREAD(protothread_vga_debug(struct pt *pt))
         memcpy(old_corr_ac, corr_ac.correlations, sizeof(old_corr_ac));
         memcpy(old_corr_bc, corr_bc.correlations, sizeof(old_corr_bc));
         old_corr_max = max_abs;
+
+        PT_SEM_SIGNAL(pt, &load_audio_semaphore);
     }
 
     PT_END(pt);
