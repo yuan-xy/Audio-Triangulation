@@ -27,7 +27,7 @@ void buffer_normalize_range(struct buffer_t *buf)
         int64_t scale = ((int64_t)INT16_MAX << 15) / max;
         for (int i = 0; i < BUFFER_SIZE; i++)
         {
-            int32_t tmp = ((int32_t)buf->buffer[i] * scale) >> 15;
+            int64_t tmp = ((int64_t)buf->buffer[i] * scale) >> 15;
             if (tmp > INT16_MAX)
                 tmp = INT16_MAX;
             else if (tmp < INT16_MIN)

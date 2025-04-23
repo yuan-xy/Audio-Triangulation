@@ -65,6 +65,7 @@
         "math.h": "c",
         "window_function.h": "c",
         "timer.h": "c",
-        "vga.h": "c"
+        "vga.h": "c",
+        "vga_text.h": "c"
     }
 }
