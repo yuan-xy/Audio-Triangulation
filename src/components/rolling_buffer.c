@@ -53,6 +53,7 @@ void rolling_buffer_write_out(struct rolling_buffer_t *buf, struct buffer_t *src
 
     buf->head = 0;
     buf->power = 0;
+    buf->total = 0;
     buf->is_full = false;
 }
 
