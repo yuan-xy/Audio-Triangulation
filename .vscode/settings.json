@@ -49,6 +49,14 @@
         "pt_cornell_rp2040_v1_3.h": "c",
         "vga16_graphics.h": "c",
         "microphones.h": "c",
-        "adc.h": "c"
+        "adc.h": "c",
+        "stdlib.h": "c",
+        "divider.h": "c",
+        "dma.h": "c",
+        "multicore.h": "c",
+        "pwm.h": "c",
+        "vga_debug.h": "c",
+        "sync.h": "c",
+        "string.h": "c"
     }
 }

@@ -1,6 +1,6 @@
 #include <correlations.h>
 
-void correlation_init(
+void correlations_init(
     struct correlations_t *corr,
     struct buffer_t *buf_a,
     struct buffer_t *buf_b)
@@ -22,7 +22,7 @@ void correlation_init(
         if (score > best_score)
         {
             best_score = score;
-            corr->best_correlation_shift = s;
+            corr->best_shift = s;
         }
     }
 }

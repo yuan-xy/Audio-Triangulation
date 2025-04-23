@@ -1,6 +1,10 @@
 #include <microphones.h>
 #include <math.h>
 
+point2d_t mic_a_location;
+point2d_t mic_b_location;
+point2d_t mic_c_location;
+
 void microphones_init(void)
 {
     // 1) build an un‑centered triangle: A'=(0,0), B'=(AB,0)

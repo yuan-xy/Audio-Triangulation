@@ -1,5 +1,14 @@
 #pragma once
 
+#include <string.h>
+
+#include <hardware/sync.h>
+#include <hardware/timer.h>
+#include <hardware/uart.h>
+
+#include <pico/stdlib.h>
+#include <pico/platform.h>
+
 #include <pico/pt_cornell_rp2040_v1_3.h>
 
 #include <constants.h>
@@ -7,45 +16,103 @@
 #include <buffer.h>
 #include <correlations.h>
 
-
 // Power threshold for activity detection (tune as needed)
-#define POWER_THRESHOLD   50000u
+#define POWER_THRESHOLD 50000u
 
-// Rolling buffers for three microphones
-extern struct rolling_buffer_t mic_a_rb;
-extern struct rolling_buffer_t mic_b_rb;
-extern struct rolling_buffer_t mic_c_rb;
+// Definitions of extern globals
+static struct rolling_buffer_t mic_a_rb;
+static struct rolling_buffer_t mic_b_rb;
+static struct rolling_buffer_t mic_c_rb;
 
-// Output buffers for processing
-extern struct buffer_t buffer_a;
-extern struct buffer_t buffer_b;
-extern struct buffer_t buffer_c;
+static struct buffer_t buffer_a;
+static struct buffer_t buffer_b;
+static struct buffer_t buffer_c;
 
-// Correlation results stored for VGA debug
-extern struct correlations_t corr_ab;
-extern struct correlations_t corr_ac;
-extern struct correlations_t corr_bc;
+static struct correlations_t corr_ab;
+static struct correlations_t corr_ac;
+static struct correlations_t corr_bc;
 
-// Sample shifts (in samples) between microphone pairs
-extern int shift_ab;
-extern int shift_ac;
-extern int shift_bc;
+static struct pt_sem load_audio_semaphore;
+static struct pt_sem vga_semaphore;
 
-// Semaphore signals for VGA thread synchronization
-extern struct pt_sem load_audio_semaphore;
-extern struct pt_sem vga_semaphore;
+// Convert 12-bit unsigned (0..4095) to Q1.15 signed (sample_t)
+static inline sample_t adc12_to_fix15(uint16_t raw12)
+{
+    int32_t v = (int32_t)raw12 - 2048;
+    if (v > 2047)
+        v = 2047;
+    if (v < -2048)
+        v = -2048;
+    return (sample_t)(v << 2);
+}
 
-/**
- * @brief Protothread for sampling audio and computing TDOA.
- *
- * - Collects samples into rolling buffers.
- * - When all buffers are full and average power exceeds POWER_THRESHOLD,
- *   writes out full frames into buffer_a/buffer_b/buffer_c.
- * - Applies DC offset cancellation, windowing, and normalization.
- * - Computes cross-correlations and TDOA shifts.
- * - Signals VGA thread to update display.
- *
- * @param pt Pointer to protothread state.
- * @return PT_THREAD return value.
- */
-PT_THREAD(protothread_sample_and_compute(struct pt *pt));
+static PT_THREAD(protothread_sample_and_compute(struct pt *pt))
+{
+    PT_BEGIN(pt);
+
+    static sample_t sA, sB, sC;
+
+    while (true)
+    {
+        // Wait until VGA thread signals buffer can be loaded
+        PT_SEM_WAIT(pt, &load_audio_semaphore);
+
+        adc_set_round_robin(
+            (1u << MIC_A_ADC_CH) |
+            (1u << MIC_B_ADC_CH) |
+            (1u << MIC_C_ADC_CH));
+        adc_select_input(MIC_A_ADC_CH);
+
+        // 1) Fill rolling buffers with fresh samples
+        absolute_time_t deadline = get_absolute_time();
+        while (true)
+        {
+            // Read mic A
+            sA = adc12_to_fix15(adc_read());
+            sB = adc12_to_fix15(adc_read());
+            sC = adc12_to_fix15(adc_read());
+
+            rolling_buffer_push(&mic_a_rb, sA);
+            rolling_buffer_push(&mic_b_rb, sB);
+            rolling_buffer_push(&mic_c_rb, sC);
+
+            if (
+                mic_a_rb.is_full &&
+                mic_b_rb.is_full &&
+                mic_c_rb.is_full && (rolling_buffer_get_power(&mic_a_rb) > POWER_THRESHOLD || rolling_buffer_get_power(&mic_b_rb) > POWER_THRESHOLD || rolling_buffer_get_power(&mic_c_rb) > POWER_THRESHOLD))
+            {
+                // Break out of the loop if all buffers are full
+                break;
+            }
+
+            // Maintain real-time sampling rate
+            deadline = delayed_by_us(deadline, SAMPLE_PERIOD_US);
+            busy_wait_until(deadline);
+        }
+
+        // 2) Write out full frames from rolling buffers
+        rolling_buffer_write_out(&mic_a_rb, &buffer_a);
+        rolling_buffer_write_out(&mic_b_rb, &buffer_b);
+        rolling_buffer_write_out(&mic_c_rb, &buffer_c);
+
+        // 3) Apply analysis window
+        buffer_window(&buffer_a);
+        buffer_window(&buffer_b);
+        buffer_window(&buffer_c);
+
+        // 4) Normalize to full dynamic range
+        buffer_normalize_range(&buffer_a);
+        buffer_normalize_range(&buffer_b);
+        buffer_normalize_range(&buffer_c);
+
+        // 5) Cross-correlation and best-shift detection
+        correlations_init(&corr_ab, &buffer_a, &buffer_b);
+        correlations_init(&corr_ac, &buffer_a, &buffer_c);
+        correlations_init(&corr_bc, &buffer_b, &buffer_c);
+
+        // 6) Signal VGA thread to plot new data
+        PT_SEM_SIGNAL(pt, &vga_semaphore);
+    }
+
+    PT_END(pt);
+}

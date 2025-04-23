@@ -6,7 +6,7 @@
 struct correlations_t
 {
     power_t correlations[CORRELATION_BUFFER_SIZE];
-    int best_correlation_shift;
+    int best_shift;
 };
 
 void correlations_init(

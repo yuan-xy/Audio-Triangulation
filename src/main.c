@@ -12,10 +12,14 @@
 #include <limits.h>
 #include <math.h>
 
-#include <pico/pt_cornell_rp2040_v1_3.h>
-
 #include <pico/stdlib.h>
+#include <pico/divider.h>
 #include <pico/multicore.h>
+#include <pico/platform.h>
+
+#include <hardware/sync.h>
+#include <hardware/timer.h>
+#include <hardware/uart.h>
 
 #include <hardware/adc.h>
 #include <hardware/pwm.h>
@@ -24,6 +28,8 @@
 #include <hardware/adc.h>
 #include <hardware/pio.h>
 #include <hardware/i2c.h>
+
+#include <pico/pt_cornell_rp2040_v1_3.h>
 
 #include <constants.h>
 #include <point2d.h>
@@ -38,7 +44,8 @@
 // Global protothread scheduler
 static struct pt pt;
 
-int main(void) {
+int main(void)
+{
     // Initialize stdio, VGA, LED, and ADC hardware
     stdio_init_all();
     initVGA();
@@ -68,7 +75,8 @@ int main(void) {
     pt_schedule_start;
 
     // Main loop: protothreads are driven by the scheduler
-    while (true) {
+    while (true)
+    {
         // Idle or low-power wait
         tight_loop_contents();
     }
