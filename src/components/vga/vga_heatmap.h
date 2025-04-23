@@ -71,10 +71,10 @@ void vga_draw_heatmap()
     }
 
     // thresholds
-    int64_t t_white = (highest_L * 255) >> 8;
-    int64_t t_green = (highest_L * 63) >> 6;
-    int64_t t_red = (highest_L * 15) >> 4;
-    int64_t t_blue = (highest_L * 3) >> 2;
+    int64_t t_white = (highest_L * 15) >> 4;
+    int64_t t_green = (highest_L * 7) >> 3;
+    int64_t t_red = (highest_L * 3) >> 2;
+    int64_t t_blue = (highest_L) >> 1;
 
     // clear area
     fillRect(
