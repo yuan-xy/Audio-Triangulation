@@ -17,7 +17,7 @@
 #include <components/correlations.h>
 
 // Power threshold for activity detection (tune as needed)
-#define POWER_THRESHOLD 12500u
+#define POWER_THRESHOLD 25000u
 
 // Definitions of extern globals
 static struct rolling_buffer_t mic_a_rb;
