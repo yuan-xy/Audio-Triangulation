@@ -1,4 +1,4 @@
-#include <correlations.h>
+#include <components/correlations.h>
 
 void correlations_init(
     struct correlations_t *corr,

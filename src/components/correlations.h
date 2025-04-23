@@ -1,7 +1,7 @@
 #pragma once
 
-#include <constants.h>
-#include <buffer.h>
+#include <components/constants.h>
+#include <components/buffer.h>
 
 struct correlations_t
 {

@@ -1,4 +1,4 @@
-#include <rolling_buffer.h>
+#include <components/rolling_buffer.h>
 
 void rolling_buffer_init(struct rolling_buffer_t *buf)
 {

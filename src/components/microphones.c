@@ -1,4 +1,5 @@
-#include <microphones.h>
+#include <components/microphones.h>
+
 #include <math.h>
 
 point2d_t mic_a_location;

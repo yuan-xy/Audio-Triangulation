@@ -1,7 +1,8 @@
 #pragma once
 
-#include <constants.h>
-#include <buffer.h>
+#include <components/constants.h>
+#include <components/buffer.h>
+
 #include <stdbool.h>
 
 #define BUFFER_QUARTER (BUFFER_SIZE >> 2)

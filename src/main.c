@@ -29,14 +29,14 @@
 #include <hardware/pio.h>
 #include <hardware/i2c.h>
 
-#include <pico/pt_cornell_rp2040_v1_3.h>
+#include <lib/pico/pt_cornell_rp2040_v1_3.h>
 
-#include <constants.h>
-#include <point.h>
-#include <buffer.h>
-#include <rolling_buffer.h>
-#include <correlations.h>
-#include <microphones.h>
+#include <components/constants.h>
+#include <components/point.h>
+#include <components/buffer.h>
+#include <components/rolling_buffer.h>
+#include <components/correlations.h>
+#include <components/microphones.h>
 
 #include <vga_debug.h>
 #include <sample_compute.h>

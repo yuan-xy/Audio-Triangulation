@@ -9,12 +9,12 @@
 #include <pico/stdlib.h>
 #include <pico/platform.h>
 
-#include <pico/pt_cornell_rp2040_v1_3.h>
+#include <lib/pico/pt_cornell_rp2040_v1_3.h>
 
-#include <constants.h>
-#include <rolling_buffer.h>
-#include <buffer.h>
-#include <correlations.h>
+#include <components/constants.h>
+#include <components/rolling_buffer.h>
+#include <components/buffer.h>
+#include <components/correlations.h>
 
 // Power threshold for activity detection (tune as needed)
 #define POWER_THRESHOLD 50000u

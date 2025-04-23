@@ -7,17 +7,18 @@
 #include <pico/stdlib.h>
 #include <pico/platform.h>
 
-#include <pico/pt_cornell_rp2040_v1_3.h>
+#include <lib/pico/pt_cornell_rp2040_v1_3.h>
 
-#include <vga/vga16_graphics.h>
+#include <lib/vga/vga16_graphics.h>
 
-#include <constants.h>
-#include <point.h>
+#include <components/constants.h>
+#include <components/point.h>
+#include <components/microphones.h>
+
 #include <sample_compute.h>
 
 #include <string.h>
 #include <math.h>
-#include <microphones.h>
 
 // Local copies for erasing old plots
 static int16_t old_buffer_a[BUFFER_SIZE];

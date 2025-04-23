@@ -57,6 +57,12 @@
         "pwm.h": "c",
         "vga_debug.h": "c",
         "sync.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "vsync.pio.h": "c",
+        "hsync.pio.h": "c",
+        "stdbool.h": "c",
+        "point.h": "c",
+        "math.h": "c",
+        "window_function.h": "c"
     }
 }

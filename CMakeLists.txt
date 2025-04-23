@@ -49,22 +49,25 @@ pico_sdk_init()
 add_executable(${PROJECT_NAME})
 
 pico_generate_pio_header(audio_triangulation
-    ${CMAKE_CURRENT_LIST_DIR}/src/pio/hsync.pio
+    ${CMAKE_CURRENT_LIST_DIR}/src/lib/pio/hsync.pio
 )
 pico_generate_pio_header(audio_triangulation
-    ${CMAKE_CURRENT_LIST_DIR}/src/pio/vsync.pio
+    ${CMAKE_CURRENT_LIST_DIR}/src/lib/pio/vsync.pio
 )
 pico_generate_pio_header(audio_triangulation
-    ${CMAKE_CURRENT_LIST_DIR}/src/pio/rgb.pio
+    ${CMAKE_CURRENT_LIST_DIR}/src/lib/pio/rgb.pio
 )
 
 # —————— Source discovery ——————
 # Recursively grab all .c/.cpp/.h under src/
+file(GLOB_RECURSE PROJECT_PINOUTS
+    "${CMAKE_CURRENT_LIST_DIR}/src/*.pio"
+)
 file(GLOB_RECURSE PROJECT_SOURCES
-     "${CMAKE_CURRENT_LIST_DIR}/src/*.c"
+    "${CMAKE_CURRENT_LIST_DIR}/src/*.c"
 )
 file(GLOB_RECURSE PROJECT_HEADERS
-     "${CMAKE_CURRENT_LIST_DIR}/src/*.h"
+    "${CMAKE_CURRENT_LIST_DIR}/src/*.h"
 )
 
 # —————— Executable ——————

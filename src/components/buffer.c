@@ -1,5 +1,5 @@
-#include <buffer.h>
-#include <window_function.h>
+#include <components/buffer.h>
+#include <components/window_function.h>
 
 void buffer_window(struct buffer_t *buf)
 {
@@ -20,7 +20,7 @@ void buffer_normalize_range(struct buffer_t *buf)
         sample = (sample < 0 ? -sample : sample);
         if (sample > INT16_MAX)
             max = sample;
-    }    
+    }
 
     if (max > 0)
     {
