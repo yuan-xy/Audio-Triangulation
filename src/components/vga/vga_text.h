@@ -6,16 +6,14 @@ void vga_draw_text()
     setTextSize(1);
     setTextColor2(GREEN, BLACK);
 
-    power_t mic_power_a = buffer_a.power;
-    power_t mic_power_b = buffer_b.power;
-    power_t mic_power_c = buffer_c.power;
-
     writeString("--= Mic Power Levels =--\n");
     sprintf(screentext,
             "Power Mic A:%5u                            \n"
             "Power Mic B:%5u                            \n"
             "Power Mic C:%5u                            \n",
-            mic_power_a, mic_power_b, mic_power_c);
+            buffer_a.power, 
+            buffer_b.power,
+            buffer_c.power);
     writeString(screentext);
 
     // line 1: sample‐shifts
