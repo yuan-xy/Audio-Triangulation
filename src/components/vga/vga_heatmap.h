@@ -2,7 +2,7 @@
 #define HEATMAP_WIDTH (2 * POS_HALF_W + 1)
 #define HEATMAP_HEIGHT (2 * POS_HALF_H + 1)
 
-#define EXPECTED_HEIGHT_OFFSET 0.2f
+#define EXPECTED_HEIGHT_OFFSET 0.0f
 
 static bool heatmap_precomputed = false;
 
