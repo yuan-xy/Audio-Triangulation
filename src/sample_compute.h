@@ -17,7 +17,7 @@
 #include <components/correlations.h>
 
 // Power threshold for activity detection (tune as needed)
-#define POWER_THRESHOLD 10000u
+#define POWER_THRESHOLD 20000u
 
 // Definitions of extern globals
 static struct rolling_buffer_t mic_a_rb;
@@ -69,11 +69,13 @@ static PT_THREAD(protothread_sample_and_compute(struct pt *pt))
             const bool is_full = mic_a_rb.is_full && mic_b_rb.is_full && mic_c_rb.is_full;
             if (is_full)
             {
-                const bool mic_a_active = rolling_buffer_get_power(&mic_a_rb) > POWER_THRESHOLD;
-                const bool mic_b_active = rolling_buffer_get_power(&mic_b_rb) > POWER_THRESHOLD;
-                const bool mic_c_active = rolling_buffer_get_power(&mic_c_rb) > POWER_THRESHOLD;
+                const power_t mic_a_rolling_power = rolling_buffer_get_power(&mic_a_rb);
+                const power_t mic_b_rolling_power = rolling_buffer_get_power(&mic_b_rb);
+                const power_t mic_c_rolling_power = rolling_buffer_get_power(&mic_c_rb);
 
-                if (true || mic_a_active || mic_b_active || mic_c_active)
+                const power_t mic_total_power = mic_a_rolling_power + mic_b_rolling_power + mic_c_rolling_power; 
+                
+                if (mic_total_power > POWER_THRESHOLD)
                     break;
             }
 
