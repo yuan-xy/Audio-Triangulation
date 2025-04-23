@@ -5,7 +5,7 @@
 
 #include <stdbool.h>
 
-#define BUFFER_QUARTER (BUFFER_SIZE >> 2)
+#define BUFFER_QUARTER (3 * (BUFFER_SIZE >> 3))
 #define BUFFER_SUM_SIZE_BITS (BUFFER_SIZE_BITS - 1)
 
 #define SAMPLE_POWER(sample) ((int64_t)(sample) * (sample))
