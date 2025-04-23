@@ -46,8 +46,12 @@ static PT_THREAD(protothread_sample_and_compute(struct pt *pt))
         // Wait until VGA thread signals buffer can be loaded
         PT_SEM_WAIT(pt, &load_audio_semaphore);
 
+        rolling_buffer_init(&mic_a_rb);
+        rolling_buffer_init(&mic_b_rb);
+        rolling_buffer_init(&mic_c_rb);
+
         adc_select_input(MIC_A_ADC_CH);
-        adc_set_round_robin((1u<<0) | (1u<<1) | (1u<<2));
+        adc_set_round_robin((1u << 0) | (1u << 1) | (1u << 2));
 
         // 1) Fill rolling buffers with fresh samples
         absolute_time_t deadline = get_absolute_time();
