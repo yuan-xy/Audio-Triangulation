@@ -6,9 +6,9 @@ void vga_draw_text()
     setTextSize(1);
     setTextColor2(GREEN, BLACK);
 
-    power_t mic_power_a = rolling_buffer_get_power(&mic_a_rb);
-    power_t mic_power_b = rolling_buffer_get_power(&mic_b_rb);
-    power_t mic_power_c = rolling_buffer_get_power(&mic_c_rb);
+    power_t mic_power_a = buffer_a.power;
+    power_t mic_power_b = buffer_b.power;
+    power_t mic_power_c = buffer_c.power;
 
     writeString("--= Mic Power Levels =--\n");
     sprintf(screentext,
