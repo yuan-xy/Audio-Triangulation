@@ -37,6 +37,7 @@
 #include <components/rolling_buffer.h>
 #include <components/correlations.h>
 #include <components/microphones.h>
+#include <components/dma_sampler.h>
 
 
 #include <vga_debug.h>
@@ -57,6 +58,7 @@ int main(void)
     rolling_buffer_init(&mic_a_rb);
     rolling_buffer_init(&mic_b_rb);
     rolling_buffer_init(&mic_c_rb);
+    dma_sampler_init();
 
     // Initialize semaphores for synchronization
     PT_SEM_INIT(&vga_semaphore, 0);

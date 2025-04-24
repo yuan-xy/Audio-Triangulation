@@ -23,7 +23,7 @@ static PT_THREAD(protothread_vga_debug(struct pt *pt))
     {
         // Wait for new data
         PT_SEM_WAIT(pt, &vga_semaphore);
-
+        
         vga_draw_correlations();
         vga_draw_heatmap();
         vga_draw_text();

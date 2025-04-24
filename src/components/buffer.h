@@ -2,7 +2,7 @@
 
 #include <components/constants.h>
 
-#define BUFFER_SIZE_BITS 9
+#define BUFFER_SIZE_BITS 10
 #define BUFFER_SIZE (1 << BUFFER_SIZE_BITS)
 
 struct buffer_t
