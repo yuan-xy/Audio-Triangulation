@@ -67,6 +67,7 @@
         "timer.h": "c",
         "vga.h": "c",
         "vga_text.h": "c",
-        "vga_waveforms.h": "c"
+        "vga_waveforms.h": "c",
+        "dma_sampler.h": "c"
     }
 }

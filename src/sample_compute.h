@@ -15,6 +15,7 @@
 #include <components/rolling_buffer.h>
 #include <components/buffer.h>
 #include <components/correlations.h>
+#include <components/dma_sampler.h>
 
 // Power threshold for activity detection (tune as needed)
 #define POWER_THRESHOLD 25000u
@@ -47,25 +48,19 @@ static PT_THREAD(protothread_sample_and_compute(struct pt *pt))
     {
         // Wait until VGA thread signals buffer can be loaded
         PT_SEM_WAIT(pt, &load_audio_semaphore);
-        adc_fifo_drain();
-        adc_run(true);
-        dma
 
         rolling_buffer_init(&mic_a_rb);
         rolling_buffer_init(&mic_b_rb);
         rolling_buffer_init(&mic_c_rb);
-
-
-
 
         // 1) Fill rolling buffers with fresh samples
         absolute_time_t deadline = get_absolute_time();
         while (true)
         {
             // Read mic A
-            sA = adc_read();
-            sB = adc_read();
-            sC = adc_read();
+            sA = dma_sample_array[0];
+            sB = dma_sample_array[1];
+            sC = dma_sample_array[2];
 
             rolling_buffer_push(&mic_a_rb, sA);
             rolling_buffer_push(&mic_b_rb, sB);
