@@ -16,4 +16,4 @@
 
 extern volatile uint8_t dma_sample_array[3];
 
-void dma_init(void);
+void dma_sampler_init(void);

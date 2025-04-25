@@ -3,8 +3,10 @@
 void rolling_buffer_init(struct rolling_buffer_t *buf)
 {
     buf->head = 0;
-    buf->power = 0;
-    buf->total = 0;
+    buf->incoming_power = 0;
+    buf->incoming_total = 0;
+    buf->outgoing_power = 0;
+    buf->outgoing_total = 0;
     buf->is_full = false;
 
     for (int i = 0; i < BUFFER_SIZE; i++)
@@ -13,17 +15,21 @@ void rolling_buffer_init(struct rolling_buffer_t *buf)
 
 void rolling_buffer_push(struct rolling_buffer_t *buf, sample_t sample)
 {
-    int sub_index = (int)buf->head + BUFFER_QUARTER;
-    sub_index = sub_index < BUFFER_SIZE ? sub_index : sub_index - BUFFER_SIZE;
+    int middle_index = buf->head - BUFFER_HALF;
+    middle_index = (middle_index < 0) ? middle_index + BUFFER_SIZE : middle_index;
+    const sample_t middle_sample = buf->buffer[middle_index];
 
-    buf->total -= buf->buffer[sub_index];
-    buf->power -= SAMPLE_POWER(buf->buffer[sub_index]);
+    buf->outgoing_total -= buf->buffer[buf->head];
+    buf->outgoing_power -= SAMPLE_POWER(buf->buffer[buf->head]);
+    
+    buf->outgoing_total += middle_sample;
+    buf->outgoing_power += SAMPLE_POWER(middle_sample);
 
-    int add_index = (int)buf->head - BUFFER_QUARTER;
-    add_index = add_index < 0 ? BUFFER_SIZE + add_index : add_index;
+    buf->incoming_total -= middle_sample;
+    buf->incoming_power -= SAMPLE_POWER(middle_sample);
 
-    buf->total += buf->buffer[add_index];
-    buf->power += SAMPLE_POWER(buf->buffer[add_index]);
+    buf->incoming_total += sample;
+    buf->incoming_power += SAMPLE_POWER(sample);
 
     buf->buffer[buf->head] = sample;
 
@@ -64,9 +70,16 @@ void rolling_buffer_write_out(const struct rolling_buffer_t *buf, struct buffer_
         dst->power += SAMPLE_POWER(dst->buffer[i]);
 }
 
-power_t rolling_buffer_get_power(const struct rolling_buffer_t *buf)
+power_t rolling_buffer_get_incoming_power(const struct rolling_buffer_t *buf)
 {
-    const power_t power = buf->power >> BUFFER_SUM_SIZE_BITS;
-    const power_t total = buf->total >> BUFFER_SUM_SIZE_BITS;
+    const power_t power = buf->incoming_power << BUFFER_HALF_SIZE_BITS;
+    const power_t total = buf->incoming_total;
+    return power - total * total;
+}
+
+power_t rolling_buffer_get_outgoing_power(const struct rolling_buffer_t *buf)
+{
+    const power_t power = buf->outgoing_power << BUFFER_HALF_SIZE_BITS;
+    const power_t total = buf->outgoing_total;
     return power - total * total;
 }

@@ -3,6 +3,8 @@ static power_t old_corr_ac[CORRELATION_BUFFER_SIZE];
 static power_t old_corr_bc[CORRELATION_BUFFER_SIZE];
 static power_t old_corr_max = 1;
 
+#define INTERPOLATE 0
+
 void vga_draw_correlations()
 {
     const int lane_h = PLOT_HEIGHT / 3;
@@ -19,13 +21,13 @@ void vga_draw_correlations()
         int x0 = PLOT_X0 + (int)((i - 1) * dx_corr + 0.5f);
         int x1 = PLOT_X0 + (int)(i * dx_corr + 0.5f);
         int y0, y1;
-        y0 = baseA - (int)(old_corr_ab[i - 1] * vscale_old + 0.5f);
+        y0 = baseA - (int)(old_corr_ab[i - INTERPOLATE] * vscale_old + 0.5f);
         y1 = baseA - (int)(old_corr_ab[i] * vscale_old + 0.5f);
         drawLine(x0, y0, x1, y1, BLACK);
-        y0 = baseB - (int)(old_corr_ac[i - 1] * vscale_old + 0.5f);
+        y0 = baseB - (int)(old_corr_ac[i - INTERPOLATE] * vscale_old + 0.5f);
         y1 = baseB - (int)(old_corr_ac[i] * vscale_old + 0.5f);
         drawLine(x0, y0, x1, y1, BLACK);
-        y0 = baseC - (int)(old_corr_bc[i - 1] * vscale_old + 0.5f);
+        y0 = baseC - (int)(old_corr_bc[i - INTERPOLATE] * vscale_old + 0.5f);
         y1 = baseC - (int)(old_corr_bc[i] * vscale_old + 0.5f);
         drawLine(x0, y0, x1, y1, BLACK);
     }
@@ -56,13 +58,13 @@ void vga_draw_correlations()
         int x0 = PLOT_X0 + (int)((i - 1) * dx_corr + 0.5f);
         int x1 = PLOT_X0 + (int)(i * dx_corr + 0.5f);
         int y0, y1;
-        y0 = baseA - (int)(corr_ab.correlations[i - 1] * vscale + 0.5f);
+        y0 = baseA - (int)(corr_ab.correlations[i - INTERPOLATE] * vscale + 0.5f);
         y1 = baseA - (int)(corr_ab.correlations[i] * vscale + 0.5f);
         drawLine(x0, y0, x1, y1, RED);
-        y0 = baseB - (int)(corr_ac.correlations[i - 1] * vscale + 0.5f);
+        y0 = baseB - (int)(corr_ac.correlations[i - INTERPOLATE] * vscale + 0.5f);
         y1 = baseB - (int)(corr_ac.correlations[i] * vscale + 0.5f);
         drawLine(x0, y0, x1, y1, BLUE);
-        y0 = baseC - (int)(corr_bc.correlations[i - 1] * vscale + 0.5f);
+        y0 = baseC - (int)(corr_bc.correlations[i - INTERPOLATE] * vscale + 0.5f);
         y1 = baseC - (int)(corr_bc.correlations[i] * vscale + 0.5f);
         drawLine(x0, y0, x1, y1, WHITE);
     }

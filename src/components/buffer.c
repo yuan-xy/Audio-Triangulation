@@ -5,7 +5,7 @@ void buffer_window(struct buffer_t *buf)
 {
     for (int i = 0; i < BUFFER_SIZE; i++)
     {
-        int32_t tmp = (int32_t)buf->buffer[i] * WINDOW_FUNCTION[i];
+        int32_t tmp = (int32_t)buf->buffer[i] * WINDOW_FUNCTION[i << (10 - BUFFER_SIZE_BITS)];
         buf->buffer[i] = (int16_t)(tmp >> 15);
     }
 }

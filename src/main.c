@@ -39,7 +39,6 @@
 #include <components/microphones.h>
 #include <components/dma_sampler.h>
 
-
 #include <vga_debug.h>
 #include <sample_compute.h>
 
@@ -52,13 +51,15 @@ int main(void)
     stdio_init_all();
     initVGA();
 
-
     // Initialize microphone geometry and rolling buffers
     microphones_init();
     rolling_buffer_init(&mic_a_rb);
     rolling_buffer_init(&mic_b_rb);
     rolling_buffer_init(&mic_c_rb);
     dma_sampler_init();
+
+    gpio_init(0);
+    gpio_set_dir(0, true);
 
     // Initialize semaphores for synchronization
     PT_SEM_INIT(&vga_semaphore, 0);

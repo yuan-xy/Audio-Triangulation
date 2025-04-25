@@ -3,7 +3,7 @@
 volatile uint8_t dma_sample_array[3] = {0};
 
 // Pointer array holding the reload address for ping-pong
-static uint8_t *reload_ptr[1] = {dma_sample_array};
+static volatile uint8_t *reload_ptr[1] = {dma_sample_array};
 
 void dma_sampler_init(void)
 {

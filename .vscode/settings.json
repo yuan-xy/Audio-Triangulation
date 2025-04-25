@@ -68,6 +68,8 @@
         "vga.h": "c",
         "vga_text.h": "c",
         "vga_waveforms.h": "c",
-        "dma_sampler.h": "c"
+        "dma_sampler.h": "c",
+        "vga_correlations.h": "c",
+        "vga_heatmap.h": "c"
     }
 }

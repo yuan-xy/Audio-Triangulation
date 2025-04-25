@@ -7,18 +7,23 @@ void vga_draw_text()
         setTextColor2(GREEN, BLACK);
 
         writeString("--= Mic Power Levels =--\n");
-        const power_t mic_a_rolling_power = rolling_buffer_get_power(&mic_a_rb);
-        const power_t mic_b_rolling_power = rolling_buffer_get_power(&mic_b_rb);
-        const power_t mic_c_rolling_power = rolling_buffer_get_power(&mic_c_rb);
+        const power_t mic_a_outgoing_power = rolling_buffer_get_outgoing_power(&mic_a_rb);
+        const power_t mic_b_outgoing_power = rolling_buffer_get_outgoing_power(&mic_b_rb);
+        const power_t mic_c_outgoing_power = rolling_buffer_get_outgoing_power(&mic_c_rb);
+        const power_t mic_a_incoming_power = rolling_buffer_get_incoming_power(&mic_a_rb);
+        const power_t mic_b_incoming_power = rolling_buffer_get_incoming_power(&mic_b_rb);
+        const power_t mic_c_incoming_power = rolling_buffer_get_incoming_power(&mic_c_rb);
         sprintf(screentext,
-                "Mic A - Total: %10lli - Rolling: %10lli\n"
-                "Mic B - Total: %10lli - Rolling: %10lli\n"
-                "Mic C - Total: %10lli - Rolling: %10lli\n"
-                "Total Rolling: %10lli\n",
-                buffer_a.power, mic_a_rolling_power,
-                buffer_b.power, mic_b_rolling_power,
-                buffer_c.power, mic_c_rolling_power,
-                mic_a_rolling_power + mic_b_rolling_power + mic_c_rolling_power);
+                "Mic A - Total: %10lli - Outgoing: %10lli - Incoming: %10lli\n"
+                "Mic B - Total: %10lli - Outgoing: %10lli - Incoming: %10lli\n"
+                "Mic C - Total: %10lli - Outgoing: %10lli - Incoming: %10lli\n"
+                "Totals                      Outgoing: %10lli - Incoming: %10lli\n",
+                buffer_a.power, mic_a_outgoing_power, mic_a_incoming_power,
+                buffer_b.power, mic_b_outgoing_power, mic_b_incoming_power,
+                buffer_c.power, mic_c_outgoing_power, mic_c_incoming_power,
+                (mic_a_outgoing_power + mic_b_outgoing_power + mic_c_outgoing_power) >> (2 * BUFFER_HALF_SIZE_BITS),
+                (mic_a_incoming_power + mic_b_incoming_power + mic_c_incoming_power) >> (2 * BUFFER_HALF_SIZE_BITS)
+        );
         writeString(screentext);
 
         // line 1: sample‐shifts
