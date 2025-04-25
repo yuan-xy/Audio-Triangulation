@@ -18,7 +18,7 @@
 #include <components/dma_sampler.h>
 
 // Power threshold for activity detection (tune as needed)
-#define POWER_THRESHOLD (((power_t)80) << (2 * BUFFER_HALF_SIZE_BITS))
+#define POWER_THRESHOLD (((power_t)120) << (2 * BUFFER_HALF_SIZE_BITS))
 
 // Definitions of extern globals
 static struct rolling_buffer_t mic_a_rb;
