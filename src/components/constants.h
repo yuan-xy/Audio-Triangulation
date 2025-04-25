@@ -7,7 +7,7 @@ typedef int64_t power_t;
 typedef int16_t sample_t;
 
 // Audio sampling
-#define SAMPLE_RATE_HZ 80000 // 50 kHz sample rate
+#define SAMPLE_RATE_HZ 60000 // 50 kHz sample rate
 #define SAMPLE_PERIOD_US (1000000 / SAMPLE_RATE_HZ)
 #define MAX_SHIFT_SAMPLES (SAMPLE_RATE_HZ * 32 / 34300)
 // Physical constants

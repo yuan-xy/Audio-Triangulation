@@ -18,7 +18,7 @@
 #include <components/dma_sampler.h>
 
 // Power threshold for activity detection (tune as needed)
-#define POWER_THRESHOLD (((power_t)60) << (2 * BUFFER_HALF_SIZE_BITS))
+#define POWER_THRESHOLD (((power_t)80) << (2 * BUFFER_HALF_SIZE_BITS))
 
 // Definitions of extern globals
 static struct rolling_buffer_t mic_a_rb;
@@ -32,6 +32,10 @@ static struct buffer_t buffer_c;
 static struct correlations_t corr_ab;
 static struct correlations_t corr_ac;
 static struct correlations_t corr_bc;
+
+static struct correlations_t new_corr_ab;
+static struct correlations_t new_corr_ac;
+static struct correlations_t new_corr_bc;
 
 static struct pt_sem load_audio_semaphore;
 static struct pt_sem vga_semaphore;
@@ -112,15 +116,15 @@ static PT_THREAD(protothread_sample_and_compute(struct pt *pt))
         buffer_window(&buffer_b);
         buffer_window(&buffer_c);
 
-        // 5) Normalize to full dynamic range again
-        buffer_normalize_range(&buffer_a);
-        buffer_normalize_range(&buffer_b);
-        buffer_normalize_range(&buffer_c);
+        // 5) Cross-correlation and best-shift detection
+        correlations_init(&new_corr_ab, &buffer_a, &buffer_b);
+        correlations_init(&new_corr_ac, &buffer_a, &buffer_c);
+        correlations_init(&new_corr_bc, &buffer_b, &buffer_c);
 
-        // 6) Cross-correlation and best-shift detection
-        correlations_init(&corr_ab, &buffer_a, &buffer_b);
-        correlations_init(&corr_ac, &buffer_a, &buffer_c);
-        correlations_init(&corr_bc, &buffer_b, &buffer_c);
+        // 6) Average new correlations with old correlations
+        correlations_average(&corr_ab, &new_corr_ab);
+        correlations_average(&corr_ac, &new_corr_ac);
+        correlations_average(&corr_bc, &new_corr_bc);
 
         // 7) Signal VGA thread to plot new data
         PT_SEM_SIGNAL(pt, &vga_semaphore);

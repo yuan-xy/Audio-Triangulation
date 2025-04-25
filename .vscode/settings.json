@@ -70,6 +70,11 @@
         "vga_waveforms.h": "c",
         "dma_sampler.h": "c",
         "vga_correlations.h": "c",
-        "vga_heatmap.h": "c"
+        "vga_heatmap.h": "c",
+        "random": "c",
+        "limits": "c",
+        "i2c.h": "c",
+        "clocks.h": "c",
+        "pio.h": "c"
     }
 }

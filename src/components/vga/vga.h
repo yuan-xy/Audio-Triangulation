@@ -28,13 +28,11 @@
 #define POS_ORIG_Y 240
 #define POS_HALF_W 50   // +/- 60px in X
 #define POS_HALF_H 50   // +/- 60px in Y
-#define POS_SCALE 40.0f // pixels per meter
-#define LENS_START 0.6f // pixels per meter
+#define POS_SCALE 24.0f // pixels per meter
 
 #define MAP_SCALE_BITS 2
 
-#define EXPECTED_HEIGHT_OFFSET 1.5f
-
+#define EXPECTED_HEIGHT_OFFSET 1.0f
 
 /*** Include Defined Functions ***/
 

@@ -12,6 +12,11 @@ void buffer_window(struct buffer_t *buf)
 
 void buffer_normalize_range(struct buffer_t *buf)
 {
+    for (int i = 0; i < BUFFER_SIZE; i++)
+        buf->buffer[i] <<= 8;
+
+    return;
+
     int32_t max = INT16_MIN;
 
     for (int i = 0; i < BUFFER_SIZE; i++)

@@ -27,7 +27,7 @@
 #include <hardware/irq.h>
 #include <hardware/adc.h>
 #include <hardware/pio.h>
-#include <hardware/i2c.h>
+#include <hardware/clocks.h>
 
 #include <lib/pico/pt_cornell_rp2040_v1_3.h>
 
@@ -46,7 +46,9 @@
 static struct pt pt;
 
 int main(void)
-{
+{  
+    set_sys_clock_khz(2 * 125000, true);
+
     // Initialize stdio, VGA, LED, and ADC hardware
     stdio_init_all();
     initVGA();

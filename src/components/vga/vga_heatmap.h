@@ -2,29 +2,68 @@
 #define HEATMAP_WIDTH (2 * POS_HALF_W + 1)
 #define HEATMAP_HEIGHT (2 * POS_HALF_H + 1)
 
+static char heat_colors[HEATMAP_HEIGHT][HEATMAP_WIDTH];
+
 static uint8_t heat_idx_ab[HEATMAP_HEIGHT][HEATMAP_WIDTH];
 static uint8_t heat_idx_ac[HEATMAP_HEIGHT][HEATMAP_WIDTH];
 static uint8_t heat_idx_bc[HEATMAP_HEIGHT][HEATMAP_WIDTH];
 
+static inline float hypot3f(float x, float y, float z) {
+  return sqrtf(x * x + y * y + z * z);
+}
+
+void draw_heatmap_axis() {
+  setTextColor2(WHITE, BLACK);
+  // draw axis
+  int ticks_per_side = POS_HALF_W / POS_SCALE;
+  int space = (POS_HALF_W << MAP_SCALE_BITS) / ticks_per_side; 
+  drawLine(POS_ORIG_X, POS_ORIG_Y - (POS_HALF_H << MAP_SCALE_BITS), POS_ORIG_X,
+           POS_ORIG_Y + (POS_HALF_H << MAP_SCALE_BITS), WHITE);
+  drawLine(POS_ORIG_X - (POS_HALF_W << MAP_SCALE_BITS), POS_ORIG_Y,
+           POS_ORIG_X + (POS_HALF_W << MAP_SCALE_BITS), POS_ORIG_Y, WHITE);
+
+  for (int y = -ticks_per_side; y <= ticks_per_side; ++y) {
+    int py = POS_ORIG_Y - space * y; 
+    if (y > 0) {
+      drawChar(POS_ORIG_X + 10, py, ('0' + y), WHITE, BLACK, 1);
+    } else if (y < 0) {
+      drawChar(POS_ORIG_X + 10, py, ('-'), WHITE, BLACK, 1);
+      drawChar(POS_ORIG_X + 20, py, ('0' - y), WHITE, BLACK, 1);
+    }
+    drawLine(POS_ORIG_X - 2, py, POS_ORIG_X + 2, py, WHITE);
+  }
+
+  for (int x = -ticks_per_side; x <= ticks_per_side; ++x) {
+    int px = POS_ORIG_X + space * x;     
+    if (x > 0) {
+      drawChar(px, POS_ORIG_Y + 10, ('0' + x), WHITE, BLACK, 1);
+    } else if (x < 0) {
+      drawChar(px, POS_ORIG_Y + 10, ('-'), WHITE, BLACK, 1);
+      drawChar(px + 10, POS_ORIG_Y + 10, ('0' - x), WHITE, BLACK, 1);
+    }    
+    drawLine(px, POS_ORIG_Y - 2, px, POS_ORIG_Y + 2, WHITE);
+  }
+}
+
 void vga_init_heatmap() {
+  draw_heatmap_axis();
   for (int y = 0; y < HEATMAP_HEIGHT; y++) {
     for (int x = 0; x < HEATMAP_WIDTH; x++) {
-      float y_m = (POS_HALF_H - y) / POS_SCALE;
       float x_m = (x - POS_HALF_W) / POS_SCALE;
+      float y_m = (POS_HALF_H - y) / POS_SCALE;
+      float z_m = EXPECTED_HEIGHT_OFFSET;
 
-      float distance = hypotf(x_m, y_m) / LENS_START;
-      if (distance > 1.0f) {
-        x_m *= distance;
-        y_m *= distance;
-      }
+      // Make sure every point is equidistant
+      float mic_scale_d = EXPECTED_HEIGHT_OFFSET / hypot3f(z_m, x_m, y_m);
+      x_m *= mic_scale_d;
+      y_m *= mic_scale_d;
+      z_m *= mic_scale_d;
 
       // distances to each mic
-      float dA = hypotf(EXPECTED_HEIGHT_OFFSET,
-                        hypotf(x_m - mic_a_location.x, y_m - mic_a_location.y));
-      float dB = hypotf(EXPECTED_HEIGHT_OFFSET,
-                        hypotf(x_m - mic_b_location.x, y_m - mic_b_location.y));
-      float dC = hypotf(EXPECTED_HEIGHT_OFFSET,
-                        hypotf(x_m - mic_c_location.x, y_m - mic_c_location.y));
+      float dA = hypot3f(z_m, x_m - mic_a_location.x, y_m - mic_a_location.y);
+      float dB = hypot3f(z_m, x_m - mic_b_location.x, y_m - mic_b_location.y);
+      float dC = hypot3f(z_m, x_m - mic_c_location.x, y_m - mic_c_location.y);
+
       // time differences (s)
       float dt_ab = (dB - dA) / SPEED_OF_SOUND_MPS;
       float dt_ac = (dC - dA) / SPEED_OF_SOUND_MPS;
@@ -54,18 +93,15 @@ void vga_init_heatmap() {
 }
 
 void vga_draw_heatmap() {
-  int w = HEATMAP_WIDTH;
-  int h = HEATMAP_HEIGHT;
   int64_t highest_L = INT64_MIN;
 
   // find max
-  for (int y = 0; y < h; y++) {
-    for (int x = 0; x < w; x++) {
-      int idxab = heat_idx_ab[y][x];
-      int idxac = heat_idx_ac[y][x];
-      int idxbc = heat_idx_bc[y][x];
-      int64_t L = (int64_t)corr_ab.correlations[idxab] +
-                  corr_ac.correlations[idxac] + corr_bc.correlations[idxbc];
+  for (int y = 0; y < HEATMAP_HEIGHT; y++) {
+    for (int x = 0; x < HEATMAP_WIDTH; x++) {
+      int64_t L = 0;
+      L += corr_ab.correlations[heat_idx_ab[y][x]];
+      L += corr_ac.correlations[heat_idx_ac[y][x]];
+      L += corr_bc.correlations[heat_idx_bc[y][x]];
       if (L > highest_L)
         highest_L = L;
     }
@@ -73,40 +109,51 @@ void vga_draw_heatmap() {
 
   // thresholds
   int64_t t_white = (highest_L * 63) >> 6;
-  int64_t t_green = (highest_L * 7) >> 3;
-  int64_t t_red = (highest_L * 3) >> 2;
-  int64_t t_blue = (highest_L) >> 1;
+  int64_t t_green = (highest_L * 31) >> 5;
+  int64_t t_red = (highest_L * 15) >> 4;
+  int64_t t_blue = (highest_L * 7) >> 3;
 
-  // clear area
-  fillRect(POS_ORIG_X - (POS_HALF_W << MAP_SCALE_BITS),
-           POS_ORIG_Y + (POS_HALF_H << MAP_SCALE_BITS), w << MAP_SCALE_BITS,
-           h << MAP_SCALE_BITS, BLACK);
-  // blit by horizontal runs
-  for (int y = 0; y < h; y++) {
-    for (int x = 0; x < w; x++) {
-      int idxab2 = heat_idx_ab[y][x];
-      int64_t L = (int64_t)corr_ab.correlations[idxab2] +
-                  corr_ac.correlations[heat_idx_ac[y][x]] +
-                  corr_bc.correlations[heat_idx_bc[y][x]];
+  for (int y = 0; y < HEATMAP_HEIGHT; y++) {
+    for (int x = 0; x < HEATMAP_WIDTH; x++) {
+      int64_t L = 0;
+      L += corr_ab.correlations[heat_idx_ab[y][x]];
+      L += corr_ac.correlations[heat_idx_ac[y][x]];
+      L += corr_bc.correlations[heat_idx_bc[y][x]];
       char c = (L >= t_white   ? WHITE
                 : L >= t_green ? GREEN
                 : L >= t_red   ? RED
                 : L >= t_blue  ? BLUE
                                : BLACK);
 
-      int px = POS_ORIG_X + ((-POS_HALF_W + x) << MAP_SCALE_BITS);
-      int py = POS_ORIG_Y + ((+POS_HALF_H - y) << MAP_SCALE_BITS);
-      fillRect(px, py, 1 << MAP_SCALE_BITS, 1 << MAP_SCALE_BITS, c);
+      if (c != heat_colors[y][x]) {
+        heat_colors[y][x] = c;
+        int px = POS_ORIG_X + ((x - POS_HALF_W) << MAP_SCALE_BITS);
+        int py = POS_ORIG_Y + ((POS_HALF_H - y) << MAP_SCALE_BITS);
+        fillRect(px, py, 1 << MAP_SCALE_BITS, 1 << MAP_SCALE_BITS, c);
+      }
     }
   }
 
-  int ax = POS_ORIG_X + (int)(((float)(1 << MAP_SCALE_BITS)) * mic_a_location.x * POS_SCALE + 0.5f);
-  int ay = POS_ORIG_Y + (int)(((float)(1 << MAP_SCALE_BITS)) * mic_a_location.y * POS_SCALE + 0.5f);
+  int ax = POS_ORIG_X +
+           (int)(((float)(1 << MAP_SCALE_BITS)) * mic_a_location.x * POS_SCALE +
+                 0.5f);
+  int ay = POS_ORIG_Y +
+           (int)(((float)(1 << MAP_SCALE_BITS)) * mic_a_location.y * POS_SCALE +
+                 0.5f);
   drawCircle(ax, ay, MIC_MARKER_R, RED);
-  int bx = POS_ORIG_X + (int)(((float)(1 << MAP_SCALE_BITS)) * mic_b_location.x * POS_SCALE + 0.5f);
-  int by = POS_ORIG_Y + (int)(((float)(1 << MAP_SCALE_BITS)) * mic_b_location.y * POS_SCALE + 0.5f);
+  int bx = POS_ORIG_X +
+           (int)(((float)(1 << MAP_SCALE_BITS)) * mic_b_location.x * POS_SCALE +
+                 0.5f);
+  int by = POS_ORIG_Y +
+           (int)(((float)(1 << MAP_SCALE_BITS)) * mic_b_location.y * POS_SCALE +
+                 0.5f);
   drawCircle(bx, by, MIC_MARKER_R, BLUE);
-  int cx = POS_ORIG_X + (int)(((float)(1 << MAP_SCALE_BITS)) * mic_c_location.x * POS_SCALE + 0.5f);
-  int cy = POS_ORIG_Y + (int)(((float)(1 << MAP_SCALE_BITS)) * mic_c_location.y * POS_SCALE + 0.5f);
+  int cx = POS_ORIG_X +
+           (int)(((float)(1 << MAP_SCALE_BITS)) * mic_c_location.x * POS_SCALE +
+                 0.5f);
+  int cy = POS_ORIG_Y +
+           (int)(((float)(1 << MAP_SCALE_BITS)) * mic_c_location.y * POS_SCALE +
+                 0.5f);
   drawCircle(cx, cy, MIC_MARKER_R, WHITE);
+  draw_heatmap_axis();
 }
