@@ -32,7 +32,7 @@
 
 #define MAP_SCALE_BITS 2
 
-#define EXPECTED_HEIGHT_OFFSET 1.0f
+#define EXPECTED_HEIGHT_OFFSET 1.2f
 
 /*** Include Defined Functions ***/
 

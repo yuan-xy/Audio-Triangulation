@@ -26,7 +26,7 @@ static PT_THREAD(protothread_vga_debug(struct pt *pt))
         
         vga_draw_correlations();
         vga_draw_heatmap();
-        vga_draw_text();
+        // vga_draw_text();
         vga_draw_waveforms();
 
         PT_SEM_SIGNAL(pt, &load_audio_semaphore);

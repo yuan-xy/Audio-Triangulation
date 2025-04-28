@@ -18,7 +18,7 @@
 #include <components/dma_sampler.h>
 
 // Power threshold for activity detection (tune as needed)
-#define POWER_THRESHOLD (((power_t)120) << (2 * BUFFER_HALF_SIZE_BITS))
+#define POWER_THRESHOLD (((power_t)2) << (2 * BUFFER_HALF_SIZE_BITS))
 
 // Definitions of extern globals
 static struct rolling_buffer_t mic_a_rb;
@@ -47,18 +47,18 @@ static PT_THREAD(protothread_sample_and_compute(struct pt *pt))
     PT_BEGIN(pt);
 
     static sample_t sA, sB, sC;
+    static absolute_time_t deadline;
 
+    deadline = get_absolute_time();
     while (true)
     {
-        // Wait until VGA thread signals buffer can be loaded
-        PT_SEM_WAIT(pt, &load_audio_semaphore);
-
         rolling_buffer_init(&mic_a_rb);
         rolling_buffer_init(&mic_b_rb);
         rolling_buffer_init(&mic_c_rb);
 
+        deadline = get_absolute_time();
+
         // 1) Fill rolling buffers with fresh samples
-        absolute_time_t deadline = get_absolute_time();
         while (true)
         {
             gpio_put(0, 1);
@@ -83,9 +83,9 @@ static PT_THREAD(protothread_sample_and_compute(struct pt *pt))
                 const power_t mic_b_incoming_power = rolling_buffer_get_incoming_power(&mic_b_rb);
                 const power_t mic_c_incoming_power = rolling_buffer_get_incoming_power(&mic_c_rb);
 
-                const power_t outgoing_power = mic_a_outgoing_power + mic_b_outgoing_power + mic_c_outgoing_power; 
-                const power_t incoming_power = mic_a_incoming_power + mic_b_incoming_power + mic_c_incoming_power; 
-                
+                const power_t outgoing_power = mic_a_outgoing_power + mic_b_outgoing_power + mic_c_outgoing_power;
+                const power_t incoming_power = mic_a_incoming_power + mic_b_incoming_power + mic_c_incoming_power;
+
                 if (outgoing_power > POWER_THRESHOLD + incoming_power)
                     break;
             }
@@ -121,13 +121,29 @@ static PT_THREAD(protothread_sample_and_compute(struct pt *pt))
         correlations_init(&new_corr_ac, &buffer_a, &buffer_c);
         correlations_init(&new_corr_bc, &buffer_b, &buffer_c);
 
-        // 6) Average new correlations with old correlations
-        correlations_average(&corr_ab, &new_corr_ab);
-        correlations_average(&corr_ac, &new_corr_ac);
-        correlations_average(&corr_bc, &new_corr_bc);
+        int best_shift_ab = new_corr_ab.best_shift;
+        int best_shift_ac = new_corr_ac.best_shift;
+        int best_shift_bc = new_corr_bc.best_shift;
 
-        // 7) Signal VGA thread to plot new data
-        PT_SEM_SIGNAL(pt, &vga_semaphore);
+        best_shift_ab *= best_shift_ab;
+        best_shift_ac *= best_shift_ac;
+        best_shift_bc *= best_shift_bc;
+
+        int shift_total = best_shift_ab + best_shift_ac + best_shift_bc;
+
+        if (shift_total > 4)
+        {
+            // 6) Average new correlations with old correlations
+            correlations_average(&corr_ab, &new_corr_ab);
+            correlations_average(&corr_ac, &new_corr_ac);
+            correlations_average(&corr_bc, &new_corr_bc);
+
+            // 7) Signal VGA thread to plot new data
+            PT_SEM_SIGNAL(pt, &vga_semaphore);
+
+            // Wait until VGA thread signals buffer can be loaded
+            PT_SEM_WAIT(pt, &load_audio_semaphore);
+        }
     }
 
     PT_END(pt);
