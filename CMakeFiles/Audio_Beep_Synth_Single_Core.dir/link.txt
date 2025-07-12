@@ -1,1 +1,0 @@
-/Users/samb/.pico-sdk/toolchain/13_3_Rel1/bin/arm-none-eabi-gcc -mcpu=cortex-m0plus -mthumb -g -O3 -DNDEBUG -Wl,--build-id=none CMakeFiles/Audio_Beep_Synth_Single_Core.dir/beep_beep.obj -o Audio_Beep_Synth_Single_Core  -lpico_stdlib -lpico_bootsel_via_double_reset -lhardware_spi -lhardware_sync
